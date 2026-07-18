@@ -1,63 +1,28 @@
-# Medical Desert Planner 🏥
+# Hack-Nation For India 🏥
 
-**Hack-Nation Challenge 04 — Data Legend (Databricks × Virtue Foundation)**
+**Challenge 04 — Data Legend (Databricks × Virtue Foundation)**
+Building the trust layer for Indian healthcare: turning 10,000 messy facility records into decisions NGO planners can defend.
 
-Where are the highest-risk healthcare gaps in India — and how confident are we that they are real?
+Our track: **Medical Desert Planner** — where are the highest-risk gaps, and how confident are we that they're real? The core idea is separating **medical deserts** (verified gaps) from **data deserts** (we simply don't know), by scoring every capability claim against corroborating evidence across fields.
 
-This Databricks App gives NGO planners **trust-weighted regional coverage** for critical capabilities (ICU, NICU, maternity, emergency, oncology, trauma) built from 10,000 messy facility records. Its core idea: a region can look empty because nothing is there (**medical desert**) or because nobody wrote it down (**data desert**) — and those need different responses.
+## Docs: how to build a Databricks App
 
-## How it works
+Step-by-step guides for getting our app onto Databricks Free Edition:
 
-Every facility × capability claim is scored by **cross-field corroboration**: a claimed ICU backed by ventilators in `equipment` and critical-care mentions in `description` counts fully; a bare uncorroborated claim counts a fraction. Regions are then classified on two axes:
+1. [App structure](docs/01-app-structure.md) — the three files every app needs (`app.py`, `app.yaml`, `requirements.txt`) with examples
+2. [Create your first app](docs/02-create-first-app.md) — Free Edition signup, UI templates, CLI creation
+3. [Develop & deploy](docs/03-develop-and-deploy.md) — the local dev loop, `databricks sync` + `deploy`, deploying from GitHub, debugging
+4. [Data & persistence](docs/04-data-and-persistence.md) — reading Delta tables from the app, Lakebase for planner notes/scenarios, where Vector Search and MLflow fit
 
-| | High knowledge | Low knowledge |
-|---|---|---|
-| **Low coverage** | 🔴 Medical desert | 🟡 Data desert |
-| **High coverage** | 🟢 Served | 🟠 Claimed, unverified |
-
-Every aggregate drills down to the facility records and the exact field mentions ("receipts") behind it. Planner notes and scenarios persist across sessions.
-
-## Repo layout
-
-- `app.py` — Streamlit app (coverage → drill-down → scenarios)
-- `trust.py` — claim corroboration + region classification logic
-- `app.yaml` — Databricks Apps runtime config
-- `data/sample_facilities.csv` — small sample so the app runs without the real dataset
-
-## Run locally
+## Quick reference
 
 ```bash
-pip install -r requirements.txt
-streamlit run app.py
+# one-time
+databricks auth login --host https://<workspace>.cloud.databricks.com
+databricks apps create medical-desert-planner
+
+# every iteration
+databricks sync . /Workspace/Users/<you>/databricks_apps/medical-desert-planner
+databricks apps deploy medical-desert-planner \
+  --source-code-path /Workspace/Users/<you>/databricks_apps/medical-desert-planner
 ```
-
-Runs on the bundled sample data by default.
-
-## Deploy to Databricks Free Edition
-
-1. Install & auth the CLI: `databricks auth login --host https://<your-workspace>.cloud.databricks.com`
-2. Create the app once (UI: **New → App**, custom, or CLI):
-   ```bash
-   databricks apps create medical-desert-planner
-   ```
-3. Sync this folder and deploy:
-   ```bash
-   databricks sync . /Workspace/Users/<you>/databricks_apps/medical-desert-planner
-   databricks apps deploy medical-desert-planner \
-     --source-code-path /Workspace/Users/<you>/databricks_apps/medical-desert-planner
-   ```
-
-### Point at the real India 10k dataset
-
-Uncomment and set in `app.yaml` (or the app's environment in the UI):
-
-- `DATABRICKS_WAREHOUSE_ID` — a serverless SQL warehouse id
-- `FACILITIES_TABLE` — e.g. `workspace.default.india_facilities`
-
-## Roadmap
-
-- [ ] Load India 10k dataset into a Delta table; map real columns to the app schema
-- [ ] Replace keyword corroboration in `trust.py` with LLM evidence extraction (`ai_query`, structured output) + MLflow 3 tracing
-- [ ] Replace `scenarios.json` with a Lakebase table
-- [ ] Choropleth map of India (PIN-prefix / district level)
-- [ ] Best-/worst-case coverage intervals (prediction bands)
