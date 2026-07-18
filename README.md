@@ -13,6 +13,8 @@ Step-by-step guides for getting our app onto Databricks Free Edition:
 2. [Create your first app](docs/02-create-first-app.md) — Free Edition signup, UI templates, CLI creation
 3. [Develop & deploy](docs/03-develop-and-deploy.md) — the local dev loop, `databricks sync` + `deploy`, deploying from GitHub, debugging
 4. [Data & persistence](docs/04-data-and-persistence.md) — reading Delta tables from the app, Lakebase for planner notes/scenarios, where Vector Search and MLflow fit
+5. [Loading the dataset](docs/05-loading-the-dataset.md) — installing the Virtue Foundation Marketplace listing, making a writable copy, granting app access, sanity checks
+6. [Marketplace listing notes](docs/06-marketplace-listing.md) — the three tables (facilities 51-col schema, PIN code directory, NFHS-5 health indicators), join caveats, geo guidance
 
 ## Quick reference
 
