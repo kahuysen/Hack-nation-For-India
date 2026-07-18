@@ -1,0 +1,13 @@
+facility_id,name,state,district,pin,facilityTypeId,capability,procedure,equipment,description,capacity,numberDoctors
+F001,Rajasthan Institute of Medical Sciences,Rajasthan,Jaipur,302001,hospital,"ICU; Emergency care; Trauma center","Emergency surgery; Hemodialysis; Cesarean sections","Ventilators; CT scanner; Blood bank; Oxygen plant","Tertiary care hospital with a 20-bed intensive care unit, 24/7 emergency department and in-house trauma team. Operates a dedicated dialysis wing with 12 stations.",450,120
+F002,Jaipur City Clinic,Rajasthan,Jaipur,302015,clinic,"ICU","","","Outpatient clinic offering general consultations.",,
+F003,Sawai Madhopur District Hospital,Rajasthan,Sawai Madhopur,322001,hospital,"Maternity; Emergency care","Normal deliveries; Cesarean sections","Labor room; Ambulance","District hospital with maternity ward and labor room. Referral point for surrounding villages.",80,14
+F004,Patna Medical College Hospital,Bihar,Patna,800004,hospital,"ICU; NICU; Emergency care; Oncology","Chemotherapy; Emergency surgery; Neonatal care","Ventilators; NICU incubators; MRI; Linear accelerator","Large teaching hospital with level III NICU, comprehensive cancer care program and round-the-clock emergency services.",1200,300
+F005,Gaya Community Health Centre,Bihar,Gaya,823001,clinic,"Emergency care","First aid; Normal deliveries","","Community health centre serving rural blocks.",,4
+F006,Araria Rural Hospital,Bihar,Araria,854311,hospital,"","","","",,
+F007,Chennai Apollo Speciality,Tamil Nadu,Chennai,600006,hospital,"ICU; Oncology; Trauma center","Robotic surgery; Chemotherapy; Radiation therapy","Da Vinci surgical robot; PET-CT; ICU ventilators","Quaternary care centre with 60 ICU beds, comprehensive oncology department and Level I trauma accreditation.",800,250
+F008,Madurai Mission Hospital,Tamil Nadu,Madurai,625001,hospital,"Maternity; NICU","Cesarean sections; Neonatal resuscitation","NICU warmers; Fetal monitors","Faith-affiliated hospital known for maternal and newborn care with a 15-bed neonatal unit.",200,45
+F009,Dharmapuri Health Post,Tamil Nadu,Dharmapuri,636701,clinic,"Maternity","","","Small health post. Details not verified.",,
+F010,Guwahati Regional Hospital,Assam,Kamrup,781001,hospital,"ICU; Emergency care","Emergency surgery; Dialysis","Ventilators; Dialysis machines; X-ray","Regional referral hospital with intensive care and nephrology services.",300,60
+F011,Tezpur Civil Hospital,Assam,Sonitpur,784001,hospital,"Emergency care","","Ambulance","Civil hospital, emergency room open during day hours.",50,
+F012,Dhemaji Clinic,Assam,Dhemaji,787057,clinic,"","","","",,

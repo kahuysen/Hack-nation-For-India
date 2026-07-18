@@ -1,0 +1,10 @@
+command: ['streamlit', 'run', 'app.py']
+env:
+  - name: 'STREAMLIT_GATHER_USAGE_STATS'
+    value: 'false'
+  # Set this to your SQL warehouse id in the app's environment to read the
+  # real India 10k tables instead of the bundled sample data.
+  # - name: 'DATABRICKS_WAREHOUSE_ID'
+  #   value: '<your-warehouse-id>'
+  # - name: 'FACILITIES_TABLE'
+  #   value: 'workspace.default.india_facilities'
