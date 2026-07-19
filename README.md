@@ -16,6 +16,7 @@ Step-by-step guides for getting our app onto Databricks Free Edition:
 5. [Loading the dataset](docs/05-loading-the-dataset.md) — installing the Virtue Foundation Marketplace listing, making a writable copy, granting app access, sanity checks
 6. [Marketplace listing notes](docs/06-marketplace-listing.md) — the three tables (facilities 51-col schema, PIN code directory, NFHS-5 health indicators), join caveats, geo guidance
 7. [API reference](docs/07-api.md) — the deployed app's FastAPI endpoints (regions ranking, facility evidence), auth, examples; spec snapshot in [api/openapi.json](api/openapi.json)
+8. [Starter materials](docs/08-starter-materials.md) — the organizers' extraction prompts/Pydantic models that generated the dataset (copies in [starter_materials/](starter_materials/)), and what they imply about each field's trustworthiness
 
 ## Quick reference
 
