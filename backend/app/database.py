@@ -35,7 +35,9 @@ def connection():
     return sql.connect(
         server_hostname=config.host.removeprefix("https://"),
         http_path=f"/sql/1.0/warehouses/{settings.warehouse_id}",
-        credentials_provider=config.authenticate,
+        # The SQL connector first calls the provider to obtain a callable
+        # header factory, then calls that factory for each request.
+        credentials_provider=lambda: config.authenticate,
     )
 
 
