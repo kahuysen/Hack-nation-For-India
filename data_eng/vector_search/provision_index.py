@@ -1,6 +1,7 @@
 """Idempotently create and synchronize the Databricks AI Search resources."""
 
 import argparse
+import time
 
 from databricks.sdk.errors import NotFound
 from databricks.sdk.service.vectorsearch import (
@@ -14,6 +15,26 @@ from databricks.sdk.service.vectorsearch import (
 from .config import settings
 from .contracts import DOCUMENT_COLUMNS
 from .local_databricks import workspace_client
+
+
+def wait_for_index(client, timeout_seconds: int = 900, poll_seconds: int = 10):
+    """Wait until an index can accept sync and query operations."""
+    deadline = time.monotonic() + timeout_seconds
+    last_message = None
+    while time.monotonic() < deadline:
+        index = client.vector_search_indexes.get_index(settings.index_name)
+        status = index.status
+        if status and status.ready:
+            return index
+        message = status.message if status else "Index status is unavailable"
+        if message != last_message:
+            print(f"Waiting for AI Search index: {message}", flush=True)
+            last_message = message
+        time.sleep(poll_seconds)
+    raise TimeoutError(
+        f"AI Search index {settings.index_name} was not ready after "
+        f"{timeout_seconds} seconds"
+    )
 
 
 def provision(profile: str) -> dict:
@@ -48,7 +69,10 @@ def provision(profile: str) -> dict:
             delta_sync_index_spec=spec,
         )
         created = True
-    client.vector_search_indexes.sync_index(settings.index_name)
+    index = wait_for_index(client)
+    if not created:
+        client.vector_search_indexes.sync_index(settings.index_name)
+        index = wait_for_index(client)
     return {
         "endpoint": settings.endpoint_name,
         "endpoint_state": endpoint.endpoint_status.state.value
