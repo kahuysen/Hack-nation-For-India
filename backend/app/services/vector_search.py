@@ -68,6 +68,7 @@ def workspace_client() -> WorkspaceClient:
         return WorkspaceClient(
             host=settings.workspace_host,
             token=_cli_token(settings.local_profile),
+            auth_type="pat",
         )
     return WorkspaceClient()
 
