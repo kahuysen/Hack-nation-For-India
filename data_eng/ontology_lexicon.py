@@ -53,16 +53,30 @@ NEGATION_PATTERN = (
 # Planner capability -> seed ontology concepts. Keys must match
 # trust_scoring.CAPABILITY_LEXICON. Every id is validated against the YAMLs at
 # load time so a typo fails fast instead of silently matching nothing.
+#
+# Curation policy: seeds were audited against derive_capability_concepts()
+# (bottom-up graph walk from anchor specialties — see compare_derived()) and
+# extended with its defensible finds. Deliberately NOT adopted, because a
+# specialty is broader than a planner capability:
+#   - maternity: ivf / hysteroscopy / hysterectomy / cancer-screening /
+#     laparoscopic-surgery (gynecology, not obstetric care)
+#   - trauma: joint-replacement / arthroscopy (elective orthopedics) and
+#     stroke-thrombolysis (stroke pathway, not injury)
+#   - dialysis: icu-beds (reached only via kidney-transplant; too generic)
+#   - anywhere: operating-theatre unless explicitly modeled (19 procedures
+#     require it — it corroborates everything, i.e. nothing)
 CAPABILITY_CONCEPTS = {
     "ICU": {
-        "procedures":  ["mechanical-ventilation", "emergency-resuscitation"],
+        "procedures":  ["mechanical-ventilation", "emergency-resuscitation",
+                        "burn-care"],
         "equipment":   ["icu-beds", "ventilator", "patient-monitor",
-                        "defibrillator", "oxygen-supply"],
+                        "defibrillator", "oxygen-supply", "isolation-ward"],
         "specialties": ["criticalCareMedicine", "anesthesia"],
     },
     "NICU": {
         "procedures":  ["neonatal-intensive-care", "phototherapy"],
-        "equipment":   ["incubator", "phototherapy-unit", "ventilator"],
+        "equipment":   ["incubator", "phototherapy-unit", "ventilator",
+                        "patient-monitor"],
         "specialties": ["neonatologyPerinatalMedicine", "pediatrics"],
     },
     "maternity": {
@@ -71,19 +85,26 @@ CAPABILITY_CONCEPTS = {
         "specialties": ["gynecologyAndObstetrics"],
     },
     "emergency": {
-        "procedures":  ["emergency-resuscitation"],
-        "equipment":   ["ambulance", "defibrillator", "oxygen-supply"],
+        "procedures":  ["emergency-resuscitation", "minor-wound-care",
+                        "fracture-fixation", "stroke-thrombolysis"],
+        "equipment":   ["ambulance", "defibrillator", "oxygen-supply",
+                        "xray-machine", "c-arm", "ct-scanner",
+                        "patient-monitor", "ventilator", "icu-beds"],
         "specialties": ["emergencyMedicine"],
     },
     "oncology": {
         "procedures":  ["chemotherapy", "radiotherapy", "cancer-screening", "biopsy"],
         "equipment":   ["linear-accelerator", "brachytherapy-unit",
-                        "chemotherapy-infusion-unit", "mammography-unit"],
+                        "chemotherapy-infusion-unit", "mammography-unit",
+                        "laboratory-analyzer", "microscope"],
         "specialties": ["medicalOncology", "radiationOncology"],
     },
     "trauma": {
-        "procedures":  ["fracture-fixation", "emergency-resuscitation", "burn-care"],
-        "equipment":   ["c-arm", "operating-theatre", "icu-beds", "blood-bank"],
+        "procedures":  ["fracture-fixation", "emergency-resuscitation", "burn-care",
+                        "mechanical-ventilation", "minor-wound-care", "spine-surgery"],
+        "equipment":   ["c-arm", "operating-theatre", "icu-beds", "blood-bank",
+                        "ambulance", "ct-scanner", "defibrillator", "oxygen-supply",
+                        "patient-monitor", "ventilator", "xray-machine"],
         "specialties": ["criticalCareMedicine", "orthopedicSurgery", "emergencyMedicine"],
     },
     "dialysis": {
@@ -94,7 +115,8 @@ CAPABILITY_CONCEPTS = {
     "cardiac": {
         "procedures":  ["angiography", "angioplasty-pci", "cabg", "valve-surgery",
                         "echocardiography", "stress-testing"],
-        "equipment":   ["cath-lab", "echo-machine", "heart-lung-machine", "ecg-machine"],
+        "equipment":   ["cath-lab", "echo-machine", "heart-lung-machine",
+                        "ecg-machine", "icu-beds", "patient-monitor"],
         "specialties": ["cardiology", "cardiacSurgery"],
     },
 }
@@ -162,6 +184,94 @@ class OntologyLexicon:
     def specialty_ids(self, capability: str) -> list[str]:
         """Exact camelCase codes (lowercased) for the closed specialties field."""
         return [s.lower() for s in CAPABILITY_CONCEPTS[capability]["specialties"]]
+
+
+# --------------------------------------------------------------------------- #
+# Bottom-up derivation of capability concept sets from the graph itself.
+#
+# Instead of hand-listing every seed concept, anchor each planner capability on
+# its specialties and walk the edges:
+#   anchor specialty --corroborating_procedures-->  procedures
+#   anchor specialty <--performed_by--              procedures   (reverse edge)
+#   anchor specialty --corroborating_equipment-->   equipment
+#   derived procedure --requires_equipment-->       equipment
+#
+# Hub guard: equipment reached ONLY via the requires_equipment hop is dropped
+# when many procedures across the whole graph require it (operating-theatre is
+# required by 19 — it corroborates everything, i.e. nothing). Explicitly
+# modeled corroborating_equipment survives regardless of degree.
+#
+# Derivation is deliberately an AUDIT/SUGGESTION tool, not the runtime source:
+# anchors are specialty-shaped, and a specialty is broader than a planner
+# capability (gynecologyAndObstetrics covers IVF and hysteroscopy, which are
+# not "maternity"). CAPABILITY_CONCEPTS stays the curated contract; run
+# compare_derived() to see what the graph thinks curation missed.
+# --------------------------------------------------------------------------- #
+ANCHOR_SPECIALTIES = {
+    "ICU":       ["criticalCareMedicine"],
+    "NICU":      ["neonatologyPerinatalMedicine"],
+    "maternity": ["gynecologyAndObstetrics"],
+    "emergency": ["emergencyMedicine"],
+    "oncology":  ["medicalOncology", "radiationOncology"],
+    "trauma":    ["criticalCareMedicine", "emergencyMedicine", "orthopedicSurgery"],
+    "dialysis":  ["nephrology"],
+    "cardiac":   ["cardiology", "cardiacSurgery"],
+}
+
+MAX_EQUIPMENT_DEGREE = 6   # requires_equipment in-degree above this = hub
+
+
+def derive_capability_concepts(lex: "OntologyLexicon",
+                               anchors: dict = None,
+                               max_equipment_degree: int = MAX_EQUIPMENT_DEGREE) -> dict:
+    """Walk the graph from anchor specialties; returns the same shape as
+    CAPABILITY_CONCEPTS. Pure function of the YAMLs — nothing hand-listed
+    except the anchors."""
+    anchors = anchors or ANCHOR_SPECIALTIES
+    degree = {}
+    for p in lex.procedures.values():
+        for eid in p.get("requires_equipment", []):
+            degree[eid] = degree.get(eid, 0) + 1
+
+    derived = {}
+    for cap, anchor_ids in anchors.items():
+        for sid in anchor_ids:
+            assert sid in lex.specialties, f"{cap}: unknown anchor specialty {sid!r}"
+        procs = dict.fromkeys(
+            pid
+            for sid in anchor_ids
+            for pid in lex.specialties[sid].get("corroborating_procedures", []))
+        for pid, p in lex.procedures.items():                 # reverse performed_by
+            if any(sid in p.get("performed_by", []) for sid in anchor_ids):
+                procs.setdefault(pid)
+        explicit_eq = dict.fromkeys(
+            eid
+            for sid in anchor_ids
+            for eid in lex.specialties[sid].get("corroborating_equipment", []))
+        equipment = dict(explicit_eq)
+        for pid in procs:                                     # one hop, hub-guarded
+            for eid in lex.procedures[pid].get("requires_equipment", []):
+                if eid in explicit_eq or degree.get(eid, 0) <= max_equipment_degree:
+                    equipment.setdefault(eid)
+        derived[cap] = {"procedures": list(procs),
+                        "equipment": list(equipment),
+                        "specialties": list(anchor_ids)}
+    return derived
+
+
+def compare_derived(lex: "OntologyLexicon") -> dict:
+    """Per capability: what bottom-up derivation adds to / misses from the
+    curated CAPABILITY_CONCEPTS. Feed to a test or eyeball in a notebook."""
+    derived = derive_capability_concepts(lex)
+    report = {}
+    for cap, hand in CAPABILITY_CONCEPTS.items():
+        d = derived[cap]
+        report[cap] = {
+            kind: {"derived_adds": sorted(set(d[kind]) - set(hand[kind])),
+                   "hand_only": sorted(set(hand[kind]) - set(d[kind]))}
+            for kind in ("procedures", "equipment", "specialties")
+        }
+    return report
 
 
 @lru_cache(maxsize=1)

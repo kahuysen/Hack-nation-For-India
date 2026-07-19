@@ -39,6 +39,29 @@ class OntologyLexiconTests(unittest.TestCase):
         self.assertTrue(self.lex.advanced_equipment_keywords("cardiac"))  # cath lab et al.
 
 
+class BottomUpDerivationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from data_eng.ontology_lexicon import derive_capability_concepts
+        cls.lex = load_lexicon()
+        cls.derived = derive_capability_concepts(cls.lex)
+
+    def test_derivation_covers_every_capability(self):
+        self.assertEqual(set(self.derived), set(CAPABILITY_CONCEPTS))
+        for cap, kinds in self.derived.items():
+            self.assertTrue(kinds["procedures"], f"{cap}: derivation found no procedures")
+            self.assertTrue(kinds["equipment"], f"{cap}: derivation found no equipment")
+
+    def test_hub_guard_blocks_operating_theatre_for_emergency(self):
+        # operating-theatre is required by 19 procedures; unless a specialty
+        # explicitly models it as corroborating, the hop must not pull it in.
+        self.assertNotIn("operating-theatre", self.derived["emergency"]["equipment"])
+
+    def test_derivation_recovers_explicit_corroboration_edges(self):
+        # nephrology's modeled corroborating_equipment must survive derivation.
+        self.assertIn("ro-water-plant", self.derived["dialysis"]["equipment"])
+
+
 class WordBoundaryTests(unittest.TestCase):
     """The regex is built for Spark (Java) but is Python-compatible — test it here."""
 
