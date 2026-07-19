@@ -79,3 +79,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* react-globe.gl's hover preview. Lift it above the verdict legend (z-auto)
+   but keep it below the facility panel (z-20). Requires GlobeStage to not
+   form a stacking context at rest — see GlobeStage.tsx. */
+.float-tooltip-kap {
+  z-index: 10;
+}

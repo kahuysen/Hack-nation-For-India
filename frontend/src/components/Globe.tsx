@@ -12,11 +12,11 @@ import {
 } from "@/lib/api"
 import { STATE_ALIAS } from "@/lib/dummyRegions"
 
-const WATER_COLOR = 0x0b1f3a // deep blue ocean
-const LAND_COLOR = "#dbe2ea" // pale land fill (rest of world)
-const BORDER_COLOR = "#334155" // slate borders
-const NO_ROLLUP_COLOR = "#3f4a5a" // muted — state absent from the response
-const NEUTRAL_STATE_COLOR = "#1e293b" // dark neutral fill under facility points
+const WATER_COLOR = 0x171717 // deep neutral ocean
+const LAND_COLOR = "#e5e5e5" // pale land fill (rest of world)
+const BORDER_COLOR = "#404040" // neutral borders
+const NO_ROLLUP_COLOR = "#525252" // muted — state absent from the response
+const NEUTRAL_STATE_COLOR = "#262626" // dark neutral fill under facility points
 
 type Feature = {
   properties: { ADMIN?: string; state?: string }
@@ -34,11 +34,13 @@ export function Globe({
   regions,
   facilities,
   onSelectState,
+  onReady,
 }: {
   capability: string
   regions: RegionResult[]
   facilities?: FacilityLocation[]
   onSelectState?: (state: string) => void
+  onReady?: (globe: GlobeMethods) => void
 }) {
   const pointsMode = facilities !== undefined
   const globeRef = useRef<GlobeMethods | undefined>(undefined)
@@ -98,7 +100,8 @@ export function Globe({
     if (!globe) return
     globe.controls().autoRotate = false
     globe.pointOfView({ lat: 22, lng: 80, altitude: 1.6 }, 0)
-  }, [size.width])
+    onReady?.(globe)
+  }, [size.width, onReady])
 
   return (
     <div ref={containerRef} className="absolute inset-0">
@@ -110,7 +113,7 @@ export function Globe({
           backgroundColor="rgba(0,0,0,0)"
           globeMaterial={globeMaterial}
           showAtmosphere={true}
-          atmosphereColor="#3b82f6"
+          atmosphereColor="#737373"
           atmosphereAltitude={0.18}
           polygonsData={polygons}
           onPolygonClick={(f: object) => {
@@ -149,7 +152,7 @@ export function Globe({
             const fac = p as FacilityLocation
             const typeLabel = FACILITY_TYPE_LABEL[fac.facility_type] ?? fac.facility_type
             return `
-              <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(15,23,42,.92);
+              <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(23,23,23,.92);
                           padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);max-width:240px">
                 <div style="font-weight:600;font-size:13px">${fac.name}</div>
                 <div style="color:${facilityTypeColor(fac.facility_type)};font-weight:600;margin:2px 0 4px">
@@ -165,14 +168,14 @@ export function Globe({
             const r = regionForState(name)
             if (!r)
               return `
-                <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(15,23,42,.92);
+                <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(23,23,23,.92);
                             padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15)">
                   <div style="font-weight:600">${name}</div>
-                  <div style="color:#94a3b8">No rollup for ${capability}</div>
+                  <div style="color:#a3a3a3">No rollup for ${capability}</div>
                 </div>`
             const need = r.need_score == null ? "unknown" : `${Math.round(r.need_score)}/100`
             return `
-              <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(15,23,42,.92);
+              <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(23,23,23,.92);
                           padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);max-width:240px">
                 <div style="font-weight:600;font-size:13px">${r.state}</div>
                 <div style="color:${VERDICT_COLOR[r.verdict]};font-weight:600;margin:2px 0 4px">

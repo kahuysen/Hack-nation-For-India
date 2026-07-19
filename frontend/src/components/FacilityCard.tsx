@@ -18,9 +18,9 @@ function pct(v: number): string {
 function Meter({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div>
-      <div className="mb-0.5 flex justify-between text-[11px] text-slate-400">
+      <div className="mb-0.5 flex justify-between text-[11px] text-neutral-400">
         <span>{label}</span>
-        <span className="tabular-nums text-slate-300">{pct(value)}</span>
+        <span className="tabular-nums text-neutral-300">{pct(value)}</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
         <div className={cn("h-full rounded-full", tone)} style={{ width: pct(value) }} />
@@ -29,22 +29,23 @@ function Meter({ label, value, tone }: { label: string; value: number; tone: str
   )
 }
 
+// Monochrome tier badges — kept distinguishable by brightness, not hue.
 const TIER_STYLE: Record<string, string> = {
-  government: "border-sky-400/40 bg-sky-400/10 text-sky-300",
-  private: "border-violet-400/40 bg-violet-400/10 text-violet-300",
-  trust: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
+  government: "border-white/30 bg-white/15 text-neutral-100",
+  private: "border-white/20 bg-white/10 text-neutral-300",
+  trust: "border-white/10 bg-white/5 text-neutral-400",
 }
 
 export function FacilityCard({ f }: { f: FacilityEvidence }) {
   const urls = parseUrls(f.source_urls)
-  const tierStyle = TIER_STYLE[f.tier?.toLowerCase()] ?? "border-white/15 bg-white/5 text-slate-300"
+  const tierStyle = TIER_STYLE[f.tier?.toLowerCase()] ?? "border-white/15 bg-white/5 text-neutral-300"
 
   return (
-    <article className="rounded-lg border border-white/10 bg-slate-900/60 p-3.5">
+    <article className="rounded-lg border border-white/10 bg-neutral-900/60 p-3.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-slate-100">{f.name}</h3>
-          <p className="mt-0.5 text-xs text-slate-400">
+          <h3 className="truncate text-sm font-semibold text-neutral-100">{f.name}</h3>
+          <p className="mt-0.5 text-xs text-neutral-400">
             {f.district} · {f.state}
             {f.pin ? ` · ${f.pin}` : ""}
           </p>
@@ -60,39 +61,39 @@ export function FacilityCard({ f }: { f: FacilityEvidence }) {
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
-        <Meter label="Source trust" value={f.source_trust} tone="bg-emerald-400" />
-        <Meter label="Knowledge" value={f.knowledge} tone="bg-sky-400" />
+        <Meter label="Source trust" value={f.source_trust} tone="bg-neutral-100" />
+        <Meter label="Knowledge" value={f.knowledge} tone="bg-neutral-400" />
       </div>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-400">
         <span>
-          <b className="text-slate-200">{f.n_corroborating}</b> corroborating
+          <b className="text-neutral-200">{f.n_corroborating}</b> corroborating
           {f.claiming ? ` · ${f.claiming} claiming` : ""}
         </span>
         <span>
-          confidence: <span className="text-slate-200">{f.data_confidence}</span>
+          confidence: <span className="text-neutral-200">{f.data_confidence}</span>
         </span>
         <span>
-          weight: <span className="tabular-nums text-slate-200">{f.trust_weight.toFixed(2)}</span>
+          weight: <span className="tabular-nums text-neutral-200">{f.trust_weight.toFixed(2)}</span>
         </span>
       </div>
 
       {f.evidence.length > 0 && (
         <div className="mt-3 border-t border-white/10 pt-2.5">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
             Evidence
           </p>
           <ul className="space-y-1.5">
             {f.evidence.map((e, i) => (
-              <li key={`${e.field}-${i}`} className="text-xs text-slate-300">
-                <span className="text-slate-500">{e.field}:</span> {e.snippet}
+              <li key={`${e.field}-${i}`} className="text-xs text-neutral-300">
+                <span className="text-neutral-500">{e.field}:</span> {e.snippet}
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {f.description && <p className="mt-2.5 text-xs text-slate-400">{f.description}</p>}
+      {f.description && <p className="mt-2.5 text-xs text-neutral-400">{f.description}</p>}
 
       {urls.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-2">
@@ -102,7 +103,7 @@ export function FacilityCard({ f }: { f: FacilityEvidence }) {
               href={u}
               target="_blank"
               rel="noreferrer"
-              className="max-w-full truncate text-[11px] text-blue-400 underline decoration-blue-400/40 hover:text-blue-300"
+              className="max-w-full truncate text-[11px] text-neutral-300 underline decoration-neutral-400/40 hover:text-neutral-100"
             >
               {u.replace(/^https?:\/\//i, "")}
             </a>
