@@ -1,0 +1,385 @@
+# Equipment & infrastructure
+#
+# Normalized concepts for the free-text `equipment` claim field
+# (produced by starter_materials/free_form.py — sentences like
+# "Has Siemens SOMATOM Force dual-source CT scanner").
+#
+# `keywords` are lowercase substrings for matching claim sentences (includes
+# brand names commonly seen in Indian facility pages — a brand/model mention is
+# stronger evidence than a generic term).
+# `enables` → procedures.yaml ids: procedures this equipment makes possible.
+# The reverse edge (procedure → requires_equipment) lives in procedures.yaml;
+# together they form the corroboration graph.
+#
+# tier: basic | intermediate | advanced — rough capital-intensity tier.
+# Advanced equipment claims deserve more scrutiny (and more corroboration
+# credit) than basic ones: an unverified "MRI" claim is a bigger deal than
+# an unverified "ECG machine".
+
+equipment:
+  # ── Imaging ───────────────────────────────────────────────────
+  - id: xray-machine
+    label: X-ray machine
+    category: imaging
+    tier: basic
+    keywords: [x-ray, xray, radiography, digital radiography, dr system]
+    enables: [xray-imaging, fracture-fixation]
+
+  - id: ultrasound-machine
+    label: Ultrasound / sonography machine
+    category: imaging
+    tier: basic
+    keywords: [ultrasound, sonography, usg machine, doppler, sonosite, voluson]
+    enables: [ultrasound-imaging, antenatal-care]
+
+  - id: ct-scanner
+    label: CT scanner
+    category: imaging
+    tier: advanced
+    keywords: [ct scan, ct scanner, computed tomography, somatom, revolution ct, slice ct]
+    enables: [ct-imaging, stroke-thrombolysis, craniotomy]
+
+  - id: mri-machine
+    label: MRI machine
+    category: imaging
+    tier: advanced
+    keywords: [mri, magnetic resonance, tesla, magnetom, signa]
+    enables: [mri-imaging]
+
+  - id: mammography-unit
+    label: Mammography unit
+    category: imaging
+    tier: intermediate
+    keywords: [mammography, mammogram machine]
+    enables: [mammography-screening]
+
+  - id: c-arm
+    label: C-arm fluoroscopy
+    category: imaging
+    tier: intermediate
+    keywords: [c-arm, c arm, fluoroscopy, image intensifier]
+    enables: [fracture-fixation, joint-replacement, spine-surgery]
+
+  - id: cath-lab
+    label: Cardiac catheterization lab
+    category: imaging
+    tier: advanced
+    keywords: [cath lab, cathlab, catheterization laboratory, angiography suite]
+    enables: [angiography, angioplasty-pci]
+
+  - id: echo-machine
+    label: Echocardiography machine
+    category: imaging
+    tier: intermediate
+    keywords: [echo machine, echocardiograph, 2d echo]
+    enables: [echocardiography]
+
+  # ── Laboratory & blood ────────────────────────────────────────
+  - id: laboratory-analyzer
+    label: Laboratory analyzer
+    category: laboratory
+    tier: basic
+    keywords: [analyzer, analyser, biochemistry, hematology analyzer, cell counter, elisa, cobas]
+    enables: [lab-diagnostics, cancer-screening]
+
+  - id: microscope
+    label: Laboratory microscope
+    category: laboratory
+    tier: basic
+    keywords: [microscope, microscopy]
+    enables: [lab-diagnostics, biopsy, skin-biopsy]
+
+  - id: blood-bank
+    label: Blood bank / storage unit
+    category: laboratory
+    tier: intermediate
+    keywords: [blood bank, blood storage, blood refrigerator]
+    enables: [blood-transfusion, cesarean-section, cabg]
+
+  - id: cold-chain-refrigerator
+    label: Vaccine cold-chain equipment
+    category: laboratory
+    tier: basic
+    keywords: [cold chain, ilr, vaccine refrigerator, deep freezer]
+    enables: [immunization]
+
+  # ── Operating theatre & surgical ──────────────────────────────
+  - id: operating-theatre
+    label: Operating theatre (OT)
+    category: surgical
+    tier: intermediate
+    keywords: [operating theatre, operation theatre, operating room, surgical theater, modular ot, laminar flow]
+    enables: [appendectomy, hernia-repair, cesarean-section, cataract-surgery, cleft-repair, tonsillectomy, joint-replacement]
+
+  - id: anesthesia-machine
+    label: Anesthesia workstation
+    category: surgical
+    tier: intermediate
+    keywords: [anesthesia machine, anaesthesia workstation, boyle's apparatus]
+    enables: [general-anesthesia, cesarean-section, appendectomy]
+
+  - id: laparoscopy-tower
+    label: Laparoscopy system
+    category: surgical
+    tier: intermediate
+    keywords: [laparoscope, laparoscopy tower, endovision, karl storz]
+    enables: [laparoscopic-surgery]
+
+  - id: electrosurgical-unit
+    label: Electrosurgical unit (cautery)
+    category: surgical
+    tier: basic
+    keywords: [cautery, electrosurgical, diathermy]
+    enables: [appendectomy, hernia-repair]
+
+  - id: surgical-microscope
+    label: Operating microscope
+    category: surgical
+    tier: advanced
+    keywords: [operating microscope, surgical microscope, zeiss microscope]
+    enables: [craniotomy, cataract-surgery]
+
+  - id: robotic-surgery-system
+    label: Robotic surgery system
+    category: surgical
+    tier: advanced
+    keywords: [robotic surgery, da vinci, surgical robot]
+    enables: [laparoscopic-surgery]
+
+  - id: heart-lung-machine
+    label: Heart-lung machine (cardiopulmonary bypass)
+    category: surgical
+    tier: advanced
+    keywords: [heart-lung machine, heart lung machine, cardiopulmonary bypass, perfusion]
+    enables: [cabg, valve-surgery]
+
+  - id: phaco-machine
+    label: Phacoemulsification machine
+    category: surgical
+    tier: intermediate
+    keywords: [phaco, phacoemulsification, centurion, infiniti]
+    enables: [cataract-surgery]
+
+  - id: lithotripter
+    label: Lithotripter (ESWL)
+    category: surgical
+    tier: advanced
+    keywords: [lithotripter, lithotripsy machine, eswl]
+    enables: [lithotripsy]
+
+  # ── Critical care & monitoring ────────────────────────────────
+  - id: ventilator
+    label: Ventilator
+    category: critical-care
+    tier: intermediate
+    keywords: [ventilator, ventilators]
+    enables: [mechanical-ventilation, neonatal-intensive-care]
+
+  - id: patient-monitor
+    label: Multi-parameter patient monitor
+    category: critical-care
+    tier: basic
+    keywords: [patient monitor, multipara, multi-parameter, cardiac monitor, vital signs monitor]
+    enables: [mechanical-ventilation, emergency-resuscitation, general-anesthesia]
+
+  - id: defibrillator
+    label: Defibrillator
+    category: critical-care
+    tier: basic
+    keywords: [defibrillator, aed, defib]
+    enables: [emergency-resuscitation]
+
+  - id: ecg-machine
+    label: ECG machine
+    category: critical-care
+    tier: basic
+    keywords: [ecg, ekg, electrocardiograph]
+    enables: [stress-testing, outpatient-consultation]
+
+  - id: icu-beds
+    label: ICU beds / intensive care unit
+    category: critical-care
+    tier: intermediate
+    keywords: [icu, intensive care unit, intensive care, ccu, hdu, critical care beds]
+    enables: [mechanical-ventilation, cabg, stroke-thrombolysis, burn-care]
+
+  - id: incubator
+    label: Neonatal incubator / warmer
+    category: critical-care
+    tier: intermediate
+    keywords: [incubator, radiant warmer, baby warmer]
+    enables: [neonatal-intensive-care]
+
+  - id: phototherapy-unit
+    label: Phototherapy unit
+    category: critical-care
+    tier: basic
+    keywords: [phototherapy unit, phototherapy machine, bilirubin]
+    enables: [phototherapy, neonatal-intensive-care]
+
+  # ── Therapy machines ──────────────────────────────────────────
+  - id: dialysis-machine
+    label: Hemodialysis machine
+    category: therapy
+    tier: advanced
+    keywords: [dialysis machine, hemodialysis machine, fresenius, dialyzer]
+    enables: [hemodialysis]
+
+  - id: ro-water-plant
+    label: RO water treatment plant (dialysis-grade)
+    category: therapy
+    tier: intermediate
+    keywords: [ro plant, reverse osmosis, water treatment plant]
+    enables: [hemodialysis]
+
+  - id: linear-accelerator
+    label: Linear accelerator (LINAC)
+    category: therapy
+    tier: advanced
+    keywords: [linear accelerator, linac, truebeam, radiotherapy machine, cobalt unit]
+    enables: [radiotherapy]
+
+  - id: brachytherapy-unit
+    label: Brachytherapy unit
+    category: therapy
+    tier: advanced
+    keywords: [brachytherapy]
+    enables: [radiotherapy]
+
+  - id: chemotherapy-infusion-unit
+    label: Chemotherapy day-care / infusion unit
+    category: therapy
+    tier: intermediate
+    keywords: [infusion chairs, day care chemotherapy, chemo ward, infusion pumps]
+    enables: [chemotherapy]
+
+  - id: physiotherapy-equipment
+    label: Physiotherapy equipment
+    category: therapy
+    tier: basic
+    keywords: [physiotherapy equipment, traction, ultrasound therapy, tens, exercise therapy]
+    enables: [physiotherapy]
+
+  # ── Specialty diagnostics ─────────────────────────────────────
+  - id: endoscopy-system
+    label: Endoscopy system
+    category: diagnostic
+    tier: intermediate
+    keywords: [endoscope, endoscopy system, gastroscope, colonoscope, olympus]
+    enables: [endoscopy, colonoscopy, arthroscopy, tonsillectomy]
+
+  - id: eeg-machine
+    label: EEG machine
+    category: diagnostic
+    tier: intermediate
+    keywords: [eeg machine, electroencephalograph, emg machine, nerve conduction]
+    enables: [eeg-testing]
+
+  - id: spirometer
+    label: Spirometer / PFT lab
+    category: diagnostic
+    tier: basic
+    keywords: [spirometer, pft machine, pulmonary function lab]
+    enables: [pulmonary-function-testing]
+
+  - id: audiometer
+    label: Audiometer
+    category: diagnostic
+    tier: basic
+    keywords: [audiometer, audiology booth, bera]
+    enables: [audiometry]
+
+  - id: slit-lamp
+    label: Slit lamp
+    category: diagnostic
+    tier: basic
+    keywords: [slit lamp, slit-lamp]
+    enables: [refraction, cataract-surgery]
+
+  - id: autorefractor
+    label: Autorefractor / vision testing equipment
+    category: diagnostic
+    tier: basic
+    keywords: [autorefractor, refractometer, vision chart, keratometer]
+    enables: [refraction]
+
+  - id: ophthalmic-laser
+    label: Ophthalmic laser
+    category: diagnostic
+    tier: intermediate
+    keywords: [ophthalmic laser, yag laser, green laser, argon laser]
+    enables: [retinal-laser]
+
+  - id: fetal-monitor
+    label: Fetal monitor (CTG)
+    category: diagnostic
+    tier: basic
+    keywords: [fetal monitor, ctg, cardiotocography, fetal doppler]
+    enables: [antenatal-care, normal-delivery]
+
+  # ── Dental ────────────────────────────────────────────────────
+  - id: dental-chair
+    label: Dental chair & unit
+    category: dental
+    tier: basic
+    keywords: [dental chair, dental unit]
+    enables: [tooth-extraction, root-canal, dental-scaling, orthodontic-treatment]
+
+  - id: dental-xray
+    label: Dental X-ray (incl. OPG)
+    category: dental
+    tier: basic
+    keywords: [dental x-ray, opg, rvg, panoramic x-ray, cbct]
+    enables: [root-canal, orthodontic-treatment]
+
+  # ── Specialty labs & wards ────────────────────────────────────
+  - id: ivf-lab
+    label: IVF / embryology lab
+    category: specialty-lab
+    tier: advanced
+    keywords: [ivf lab, embryology lab, fertility lab]
+    enables: [ivf]
+
+  - id: isolation-ward
+    label: Isolation ward
+    category: infrastructure
+    tier: intermediate
+    keywords: [isolation ward, isolation beds, negative pressure]
+    enables: [burn-care]
+
+  # ── Infrastructure & utilities ────────────────────────────────
+  - id: patient-beds
+    label: Inpatient beds
+    category: infrastructure
+    tier: basic
+    keywords: [beds, bedded, bed capacity, wards]
+    note: The extraction prompt says bed COUNTS belong in `capability`, not `equipment` — but bed claims leak into both fields in practice. Also cross-check against the structured `capacity` column.
+    enables: [inpatient-admission]
+
+  - id: oxygen-supply
+    label: Oxygen plant / piped oxygen
+    category: utilities
+    tier: intermediate
+    keywords: [oxygen plant, oxygen generation, piped oxygen, psa plant, oxygen concentrator, lmo]
+    enables: [mechanical-ventilation, emergency-resuscitation, neonatal-intensive-care]
+
+  - id: backup-power
+    label: Backup power (generator/UPS)
+    category: utilities
+    tier: basic
+    keywords: [generator, backup power, ups, power backup, solar power]
+    enables: []
+
+  - id: ambulance
+    label: Ambulance
+    category: utilities
+    tier: basic
+    keywords: [ambulance, ambulances, patient transport]
+    enables: [emergency-resuscitation]
+
+  - id: delivery-table
+    label: Labour room / delivery equipment
+    category: infrastructure
+    tier: basic
+    keywords: [labour room, labor room, delivery table, birthing]
+    enables: [normal-delivery]

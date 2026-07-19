@@ -1,0 +1,335 @@
+# Doctor types / medical specialties
+#
+# `id` matches the dataset's camelCase `specialties` vocabulary exactly
+# (the closed vocabulary used by starter_materials/medical_specialties.py).
+# `in_prompt_vocab: true` means the id is directly evidenced in that prompt's
+# mapping rules; entries with `false` are plausible members of the unpublished
+# level-0/1 hierarchy — verify against actual dataset values before relying on them.
+#
+# Cross-links reference ids in procedures.yaml and equipment.yaml.
+# `corroborating_*` lists answer: "if this specialty claim is real, what should
+# we expect to see in the facility's procedure/equipment claims?"
+#
+# care_level: primary | secondary | tertiary — the lowest tier of the Indian
+# public system (PHC / CHC-district hospital / medical college & specialty
+# hospital) where the specialty is typically available.
+
+specialties:
+  # ── Primary / generalist medicine ─────────────────────────────
+  - id: internalMedicine
+    label: Internal medicine (general physician)
+    group: medicine
+    in_prompt_vocab: true
+    care_level: primary
+    synonyms: [general medicine, physician, medical, MD medicine, general hospital]
+    note: Default assigned to any generic "Hospital / Medical Center" name — weakest evidentiary value of all specialties.
+    corroborating_procedures: [outpatient-consultation, inpatient-admission, lab-diagnostics]
+    corroborating_equipment: [ecg-machine, laboratory-analyzer, patient-beds]
+
+  - id: familyMedicine
+    label: Family medicine (general practice)
+    group: medicine
+    in_prompt_vocab: true
+    care_level: primary
+    synonyms: [general practice, GP, family physician, community clinic]
+    note: Default assigned to any generic "Clinic" name.
+    corroborating_procedures: [outpatient-consultation, immunization, minor-wound-care]
+    corroborating_equipment: [ecg-machine]
+
+  - id: emergencyMedicine
+    label: Emergency medicine
+    group: medicine
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [ER, ED, emergency department, casualty, 24x7 emergency, emergency medical services]
+    corroborating_procedures: [emergency-resuscitation, minor-wound-care, fracture-fixation]
+    corroborating_equipment: [defibrillator, ventilator, ambulance, oxygen-supply]
+
+  - id: criticalCareMedicine
+    label: Critical care medicine (incl. trauma)
+    group: medicine
+    in_prompt_vocab: true
+    care_level: tertiary
+    synonyms: [ICU, intensive care, trauma, trauma center, intensivist]
+    note: The extraction prompt maps "Trauma" here, not to emergencyMedicine or surgery.
+    corroborating_procedures: [mechanical-ventilation, emergency-resuscitation]
+    corroborating_equipment: [ventilator, patient-monitor, defibrillator, icu-beds, oxygen-supply]
+
+  # ── Medical (adult) subspecialties ────────────────────────────
+  - id: cardiology
+    label: Cardiology
+    group: medicine
+    in_prompt_vocab: true
+    care_level: tertiary
+    synonyms: [heart, cardiac (non-surgical), cardiologist, heart center]
+    corroborating_procedures: [echocardiography, angiography, angioplasty-pci, stress-testing]
+    corroborating_equipment: [ecg-machine, echo-machine, cath-lab, patient-monitor]
+
+  - id: nephrology
+    label: Nephrology
+    group: medicine
+    in_prompt_vocab: true
+    care_level: tertiary
+    synonyms: [kidney, renal, nephrologist]
+    corroborating_procedures: [hemodialysis, peritoneal-dialysis]
+    corroborating_equipment: [dialysis-machine, ro-water-plant]
+
+  - id: medicalOncology
+    label: Medical oncology
+    group: medicine
+    in_prompt_vocab: true
+    care_level: tertiary
+    synonyms: [oncology, cancer, cancer center, chemotherapy]
+    note: Generic "Oncology / Cancer Center" maps here even if the facility mainly does surgery or radiotherapy.
+    corroborating_procedures: [chemotherapy, cancer-screening, biopsy]
+    corroborating_equipment: [chemotherapy-infusion-unit, laboratory-analyzer]
+
+  - id: endocrinologyAndDiabetesAndMetabolism
+    label: Endocrinology, diabetes & metabolism
+    group: medicine
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [endocrinology, diabetes, diabetology, thyroid, hormone]
+    corroborating_procedures: [lab-diagnostics, outpatient-consultation]
+    corroborating_equipment: [laboratory-analyzer]
+
+  - id: infectiousDiseases
+    label: Infectious diseases
+    group: medicine
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [infectious, tropical diseases, TB, tuberculosis, HIV, fever clinic, DOTS]
+    corroborating_procedures: [lab-diagnostics, immunization]
+    corroborating_equipment: [laboratory-analyzer, isolation-ward]
+
+  - id: geriatricsInternalMedicine
+    label: Geriatrics
+    group: medicine
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [geriatric, elderly care, old age]
+    corroborating_procedures: [outpatient-consultation, physiotherapy]
+    corroborating_equipment: [patient-beds]
+
+  - id: hospiceAndPalliativeInternalMedicine
+    label: Hospice & palliative medicine
+    group: medicine
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [palliative, hospice, end-of-life care, pain and palliative]
+    corroborating_procedures: [pain-management]
+    corroborating_equipment: [patient-beds, oxygen-supply]
+
+  - id: physicalMedicineAndRehabilitation
+    label: Physical medicine & rehabilitation
+    group: medicine
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [rehabilitation, PMR, physiatry, physiotherapy, rehab center]
+    corroborating_procedures: [physiotherapy]
+    corroborating_equipment: [physiotherapy-equipment]
+
+  # ── Women's & children's health ───────────────────────────────
+  - id: gynecologyAndObstetrics
+    label: Gynecology & obstetrics
+    group: women-and-children
+    in_prompt_vocab: true
+    care_level: primary
+    synonyms: [OBGYN, maternity, obstetrics, gynecology, women's health, labour room, ANC]
+    corroborating_procedures: [normal-delivery, cesarean-section, antenatal-care, hysterectomy, ivf]
+    corroborating_equipment: [ultrasound-machine, fetal-monitor, delivery-table, operating-theatre]
+
+  - id: pediatrics
+    label: Pediatrics
+    group: women-and-children
+    in_prompt_vocab: true
+    care_level: primary
+    synonyms: [paediatrics, children, child health, pediatrician]
+    corroborating_procedures: [immunization, outpatient-consultation]
+    corroborating_equipment: [incubator, phototherapy-unit]
+
+  - id: neonatologyPerinatalMedicine
+    label: Neonatology & perinatal medicine
+    group: women-and-children
+    in_prompt_vocab: true
+    care_level: tertiary
+    synonyms: [neonatal, NICU, newborn care, SNCU, perinatal]
+    corroborating_procedures: [neonatal-intensive-care, phototherapy]
+    corroborating_equipment: [incubator, ventilator, phototherapy-unit, patient-monitor]
+
+  # ── Surgical specialties ──────────────────────────────────────
+  - id: generalSurgery
+    label: General surgery
+    group: surgery
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [surgery, surgical, surgical center, laparoscopic surgery]
+    corroborating_procedures: [appendectomy, hernia-repair, laparoscopic-surgery, biopsy]
+    corroborating_equipment: [operating-theatre, anesthesia-machine, laparoscopy-tower, electrosurgical-unit]
+
+  - id: cardiacSurgery
+    label: Cardiac surgery
+    group: surgery
+    in_prompt_vocab: true
+    care_level: tertiary
+    synonyms: [heart surgery, CTVS, cardiothoracic, open heart]
+    corroborating_procedures: [cabg, valve-surgery]
+    corroborating_equipment: [operating-theatre, heart-lung-machine, cath-lab, icu-beds]
+
+  - id: orthopedicSurgery
+    label: Orthopedic surgery
+    group: surgery
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [orthopedics, orthopaedics, bone and joint, fracture clinic]
+    corroborating_procedures: [fracture-fixation, joint-replacement, arthroscopy]
+    corroborating_equipment: [c-arm, operating-theatre, xray-machine]
+
+  - id: plasticSurgery
+    label: Plastic & reconstructive surgery
+    group: surgery
+    in_prompt_vocab: true
+    care_level: tertiary
+    synonyms: [plastic, reconstructive, cleft, cleft center, burns, cosmetic surgery]
+    note: The extraction prompt maps "cleft" facilities here.
+    corroborating_procedures: [cleft-repair, burn-care, skin-grafting]
+    corroborating_equipment: [operating-theatre, anesthesia-machine]
+
+  - id: neurosurgery
+    label: Neurosurgery
+    group: surgery
+    in_prompt_vocab: false
+    care_level: tertiary
+    synonyms: [neuro surgery, brain surgery, spine surgery]
+    corroborating_procedures: [craniotomy, spine-surgery]
+    corroborating_equipment: [ct-scanner, mri-machine, operating-theatre, surgical-microscope]
+
+  - id: urology
+    label: Urology
+    group: surgery
+    in_prompt_vocab: false
+    care_level: tertiary
+    synonyms: [urologist, urinary, prostate, stone clinic, lithotripsy]
+    corroborating_procedures: [lithotripsy, endoscopy]
+    corroborating_equipment: [lithotripter, endoscopy-system, operating-theatre]
+
+  - id: anesthesia
+    label: Anesthesiology
+    group: surgery
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [anesthesiology, anaesthesia, anaesthetist]
+    note: The prompt suggests co-predicting this with generalSurgery when anesthesia services are indicated.
+    corroborating_procedures: [general-anesthesia, pain-management]
+    corroborating_equipment: [anesthesia-machine, patient-monitor, operating-theatre]
+
+  # ── Sense organs, dental ──────────────────────────────────────
+  - id: ophthalmology
+    label: Ophthalmology
+    group: sense-organs
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [eye, eye hospital, retina, ophthalmic, vision center]
+    corroborating_procedures: [cataract-surgery, refraction, retinal-laser]
+    corroborating_equipment: [slit-lamp, phaco-machine, ophthalmic-laser, autorefractor]
+
+  - id: otolaryngology
+    label: Otolaryngology (ENT)
+    group: sense-organs
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [ENT, ear nose throat, audiology]
+    corroborating_procedures: [tonsillectomy, audiometry, endoscopy]
+    corroborating_equipment: [endoscopy-system, audiometer, operating-theatre]
+
+  - id: dentistry
+    label: Dentistry
+    group: dental
+    in_prompt_vocab: true
+    care_level: primary
+    synonyms: [dental, dental clinic, dentist, oral health]
+    corroborating_procedures: [tooth-extraction, root-canal, dental-scaling]
+    corroborating_equipment: [dental-chair, dental-xray]
+
+  - id: orthodontics
+    label: Orthodontics
+    group: dental
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [orthodontic, braces, aligners]
+    corroborating_procedures: [orthodontic-treatment]
+    corroborating_equipment: [dental-chair, dental-xray]
+
+  # ── Diagnostics ───────────────────────────────────────────────
+  - id: radiology
+    label: Radiology & imaging
+    group: diagnostics
+    in_prompt_vocab: true
+    care_level: secondary
+    synonyms: [imaging, diagnostic imaging, sonography, scan center, radiodiagnosis]
+    corroborating_procedures: [xray-imaging, ultrasound-imaging, ct-imaging, mri-imaging, mammography-screening]
+    corroborating_equipment: [xray-machine, ultrasound-machine, ct-scanner, mri-machine, mammography-unit]
+
+  - id: pathology
+    label: Pathology & laboratory medicine
+    group: diagnostics
+    in_prompt_vocab: true
+    care_level: primary
+    synonyms: [laboratory, diagnostic lab, lab, clinical pathology, biochemistry, microbiology]
+    corroborating_procedures: [lab-diagnostics, biopsy, blood-transfusion]
+    corroborating_equipment: [laboratory-analyzer, microscope, blood-bank]
+
+  # ── Plausible but unconfirmed vocabulary members ──────────────
+  - id: dermatology
+    label: Dermatology
+    group: medicine
+    in_prompt_vocab: false
+    care_level: secondary
+    synonyms: [skin, skin clinic, venereology, leprosy]
+    corroborating_procedures: [skin-biopsy, minor-wound-care]
+    corroborating_equipment: []
+
+  - id: psychiatry
+    label: Psychiatry
+    group: medicine
+    in_prompt_vocab: false
+    care_level: secondary
+    synonyms: [mental health, de-addiction, psychiatric, counseling]
+    corroborating_procedures: [outpatient-consultation]
+    corroborating_equipment: []
+
+  - id: neurology
+    label: Neurology
+    group: medicine
+    in_prompt_vocab: false
+    care_level: tertiary
+    synonyms: [neuro, stroke, epilepsy, neurophysician]
+    corroborating_procedures: [eeg-testing, stroke-thrombolysis]
+    corroborating_equipment: [eeg-machine, ct-scanner, mri-machine]
+
+  - id: gastroenterology
+    label: Gastroenterology
+    group: medicine
+    in_prompt_vocab: false
+    care_level: tertiary
+    synonyms: [gastro, GI, liver, hepatology, endoscopy center]
+    corroborating_procedures: [endoscopy, colonoscopy]
+    corroborating_equipment: [endoscopy-system]
+
+  - id: pulmonology
+    label: Pulmonology
+    group: medicine
+    in_prompt_vocab: false
+    care_level: secondary
+    synonyms: [chest, respiratory, TB and chest, pulmonary]
+    corroborating_procedures: [pulmonary-function-testing, mechanical-ventilation]
+    corroborating_equipment: [spirometer, ventilator, oxygen-supply]
+
+  - id: radiationOncology
+    label: Radiation oncology
+    group: surgery
+    in_prompt_vocab: false
+    care_level: tertiary
+    synonyms: [radiotherapy, radiation therapy, linac center]
+    corroborating_procedures: [radiotherapy]
+    corroborating_equipment: [linear-accelerator, brachytherapy-unit]

@@ -1,0 +1,616 @@
+# Treatments / procedures
+#
+# Normalized concepts for the free-text `procedure` claim field
+# (produced by starter_materials/free_form.py — self-contained English sentences
+# like "Performs emergency cesarean sections").
+#
+# `keywords` are lowercase substrings for matching claim sentences; they include
+# Indian-English variants (LSCS, sonography, OT...). Match case-insensitively.
+# `performed_by` → specialties.yaml ids. `requires_equipment` → equipment.yaml ids
+# (equipment whose presence corroborates the procedure claim, and vice versa).
+#
+# care_level: primary | secondary | tertiary — lowest tier of the Indian public
+# system where the procedure is expected (aligned loosely with IPHS norms).
+
+procedures:
+  # ── General / outpatient ──────────────────────────────────────
+  - id: outpatient-consultation
+    label: Outpatient consultation (OPD)
+    category: general
+    care_level: primary
+    keywords: [opd, outpatient, consultation, general checkup, health checkup]
+    performed_by: [internalMedicine, familyMedicine]
+    requires_equipment: []
+
+  - id: inpatient-admission
+    label: Inpatient admission (IPD)
+    category: general
+    care_level: primary
+    keywords: [ipd, inpatient, admission, admitted patients, indoor patient]
+    performed_by: [internalMedicine]
+    requires_equipment: [patient-beds]
+
+  - id: immunization
+    label: Immunization / vaccination
+    category: preventive
+    care_level: primary
+    keywords: [immunization, immunisation, vaccination, vaccine]
+    performed_by: [pediatrics, familyMedicine]
+    requires_equipment: [cold-chain-refrigerator]
+
+  - id: minor-wound-care
+    label: Minor wound care & suturing
+    category: general
+    care_level: primary
+    keywords: [wound care, suturing, dressing, stitches, minor injuries]
+    performed_by: [familyMedicine, emergencyMedicine]
+    requires_equipment: []
+
+  - id: pain-management
+    label: Pain management
+    category: general
+    care_level: secondary
+    keywords: [pain management, pain relief, pain clinic, nerve block]
+    performed_by: [anesthesia, hospiceAndPalliativeInternalMedicine]
+    requires_equipment: []
+
+  - id: physiotherapy
+    label: Physiotherapy
+    category: rehabilitation
+    care_level: secondary
+    keywords: [physiotherapy, physical therapy, rehab, rehabilitation exercises]
+    performed_by: [physicalMedicineAndRehabilitation]
+    requires_equipment: [physiotherapy-equipment]
+
+  # ── Emergency & critical care ─────────────────────────────────
+  - id: emergency-resuscitation
+    label: Emergency resuscitation
+    category: emergency
+    care_level: secondary
+    keywords: [resuscitation, cpr, emergency care, casualty services, 24x7 emergency, life support]
+    performed_by: [emergencyMedicine, criticalCareMedicine]
+    requires_equipment: [defibrillator, oxygen-supply, patient-monitor]
+
+  - id: mechanical-ventilation
+    label: Mechanical ventilation
+    category: critical-care
+    care_level: tertiary
+    keywords: [ventilation, ventilator support, ventilated, intubation]
+    performed_by: [criticalCareMedicine, pulmonology, anesthesia]
+    requires_equipment: [ventilator, oxygen-supply, patient-monitor]
+
+  - id: neonatal-intensive-care
+    label: Neonatal intensive care
+    category: critical-care
+    care_level: tertiary
+    keywords: [nicu, neonatal intensive, sick newborn, sncu, newborn care unit]
+    performed_by: [neonatologyPerinatalMedicine, pediatrics]
+    requires_equipment: [incubator, ventilator, phototherapy-unit]
+
+  # ── Obstetric & gynecological ─────────────────────────────────
+  - id: antenatal-care
+    label: Antenatal care
+    category: obstetric
+    care_level: primary
+    keywords: [antenatal, anc, prenatal, pregnancy checkup]
+    performed_by: [gynecologyAndObstetrics]
+    requires_equipment: [ultrasound-machine, fetal-monitor]
+
+  - id: normal-delivery
+    label: Normal (vaginal) delivery
+    category: obstetric
+    care_level: primary
+    keywords: [normal delivery, vaginal delivery, deliveries, labour room, birthing]
+    performed_by: [gynecologyAndObstetrics]
+    requires_equipment: [delivery-table, fetal-monitor]
+
+  - id: cesarean-section
+    label: Cesarean section
+    category: obstetric
+    care_level: secondary
+    keywords: [cesarean, caesarean, c-section, lscs]
+    performed_by: [gynecologyAndObstetrics, anesthesia]
+    requires_equipment: [operating-theatre, anesthesia-machine]
+
+  - id: hysterectomy
+    label: Hysterectomy
+    category: gynecological
+    care_level: secondary
+    keywords: [hysterectomy, uterus removal]
+    performed_by: [gynecologyAndObstetrics]
+    requires_equipment: [operating-theatre, anesthesia-machine]
+
+  - id: ivf
+    label: IVF / assisted reproduction
+    category: gynecological
+    care_level: tertiary
+    keywords: [ivf, in vitro fertilization, fertility treatment, iui, assisted reproduction, icsi]
+    performed_by: [gynecologyAndObstetrics]
+    requires_equipment: [ivf-lab]
+
+  - id: phototherapy
+    label: Neonatal phototherapy
+    category: pediatric
+    care_level: secondary
+    keywords: [phototherapy, jaundice treatment]
+    performed_by: [neonatologyPerinatalMedicine, pediatrics]
+    requires_equipment: [phototherapy-unit]
+
+  # ── Surgery ───────────────────────────────────────────────────
+  - id: general-anesthesia
+    label: General anesthesia
+    category: surgical-support
+    care_level: secondary
+    keywords: [general anesthesia, general anaesthesia, spinal anesthesia, anesthesia services]
+    performed_by: [anesthesia]
+    requires_equipment: [anesthesia-machine, patient-monitor]
+
+  - id: appendectomy
+    label: Appendectomy
+    category: surgical
+    care_level: secondary
+    keywords: [appendectomy, appendicectomy, appendix]
+    performed_by: [generalSurgery]
+    requires_equipment: [operating-theatre, anesthesia-machine]
+
+  - id: hernia-repair
+    label: Hernia repair
+    category: surgical
+    care_level: secondary
+    keywords: [hernia, hernioplasty, herniorrhaphy]
+    performed_by: [generalSurgery]
+    requires_equipment: [operating-theatre, anesthesia-machine]
+
+  - id: laparoscopic-surgery
+    label: Laparoscopic (minimally invasive) surgery
+    category: surgical
+    care_level: secondary
+    keywords: [laparoscopic, laparoscopy, minimally invasive, keyhole surgery]
+    performed_by: [generalSurgery, gynecologyAndObstetrics]
+    requires_equipment: [laparoscopy-tower, operating-theatre]
+
+  - id: cabg
+    label: Coronary artery bypass grafting (CABG)
+    category: surgical
+    care_level: tertiary
+    keywords: [cabg, bypass surgery, open heart, coronary artery bypass]
+    performed_by: [cardiacSurgery]
+    requires_equipment: [heart-lung-machine, operating-theatre, icu-beds]
+
+  - id: valve-surgery
+    label: Heart valve surgery
+    category: surgical
+    care_level: tertiary
+    keywords: [valve replacement, valve repair, mitral valve, aortic valve]
+    performed_by: [cardiacSurgery]
+    requires_equipment: [heart-lung-machine, operating-theatre]
+
+  - id: fracture-fixation
+    label: Fracture fixation & casting
+    category: surgical
+    care_level: secondary
+    keywords: [fracture, plaster, casting, orif, fixation, bone setting]
+    performed_by: [orthopedicSurgery, emergencyMedicine]
+    requires_equipment: [xray-machine, c-arm]
+
+  - id: joint-replacement
+    label: Joint replacement (arthroplasty)
+    category: surgical
+    care_level: tertiary
+    keywords: [joint replacement, knee replacement, hip replacement, arthroplasty]
+    performed_by: [orthopedicSurgery]
+    requires_equipment: [operating-theatre, c-arm]
+
+  - id: arthroscopy
+    label: Arthroscopy
+    category: surgical
+    care_level: tertiary
+    keywords: [arthroscopy, arthroscopic]
+    performed_by: [orthopedicSurgery]
+    requires_equipment: [operating-theatre, endoscopy-system]
+
+  - id: craniotomy
+    label: Craniotomy / brain surgery
+    category: surgical
+    care_level: tertiary
+    keywords: [craniotomy, brain surgery, brain tumor surgery]
+    performed_by: [neurosurgery]
+    requires_equipment: [operating-theatre, surgical-microscope, ct-scanner]
+
+  - id: spine-surgery
+    label: Spine surgery
+    category: surgical
+    care_level: tertiary
+    keywords: [spine surgery, spinal fusion, discectomy, laminectomy]
+    performed_by: [neurosurgery, orthopedicSurgery]
+    requires_equipment: [operating-theatre, c-arm]
+
+  - id: cleft-repair
+    label: Cleft lip/palate repair
+    category: surgical
+    care_level: tertiary
+    keywords: [cleft, cleft lip, cleft palate]
+    performed_by: [plasticSurgery]
+    requires_equipment: [operating-theatre, anesthesia-machine]
+
+  - id: burn-care
+    label: Burn treatment
+    category: surgical
+    care_level: tertiary
+    keywords: [burn, burns unit, burn care]
+    performed_by: [plasticSurgery, criticalCareMedicine]
+    requires_equipment: [isolation-ward, icu-beds]
+
+  - id: skin-grafting
+    label: Skin grafting
+    category: surgical
+    care_level: tertiary
+    keywords: [skin graft, grafting, flap surgery]
+    performed_by: [plasticSurgery]
+    requires_equipment: [operating-theatre]
+
+  - id: cataract-surgery
+    label: Cataract surgery
+    category: surgical
+    care_level: secondary
+    keywords: [cataract, phacoemulsification, phaco, iol, lens implant]
+    performed_by: [ophthalmology]
+    requires_equipment: [phaco-machine, operating-theatre, slit-lamp]
+
+  - id: retinal-laser
+    label: Retinal laser treatment
+    category: surgical
+    care_level: tertiary
+    keywords: [retinal laser, laser photocoagulation, retina treatment]
+    performed_by: [ophthalmology]
+    requires_equipment: [ophthalmic-laser]
+
+  - id: tonsillectomy
+    label: Tonsillectomy & ENT surgery
+    category: surgical
+    care_level: secondary
+    keywords: [tonsillectomy, tonsil, adenoid, ent surgery, mastoidectomy]
+    performed_by: [otolaryngology]
+    requires_equipment: [operating-theatre, anesthesia-machine]
+
+  - id: lithotripsy
+    label: Lithotripsy (kidney stone treatment)
+    category: surgical
+    care_level: tertiary
+    keywords: [lithotripsy, eswl, kidney stone, urs, pcnl]
+    performed_by: [urology]
+    requires_equipment: [lithotripter]
+
+  # ── Dental ────────────────────────────────────────────────────
+  - id: tooth-extraction
+    label: Tooth extraction
+    category: dental
+    care_level: primary
+    keywords: [extraction, tooth removal, dental surgery]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair]
+
+  - id: root-canal
+    label: Root canal treatment
+    category: dental
+    care_level: secondary
+    keywords: [root canal, rct, endodontic]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair, dental-xray]
+
+  - id: dental-scaling
+    label: Dental scaling & cleaning
+    category: dental
+    care_level: primary
+    keywords: [scaling, dental cleaning, oral prophylaxis, teeth cleaning]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair]
+
+  - id: orthodontic-treatment
+    label: Orthodontic treatment (braces)
+    category: dental
+    care_level: secondary
+    keywords: [braces, orthodontic, aligners, malocclusion]
+    performed_by: [orthodontics]
+    requires_equipment: [dental-chair, dental-xray]
+
+  # ── Diagnostics & imaging ─────────────────────────────────────
+  - id: lab-diagnostics
+    label: Laboratory diagnostics
+    category: diagnostic
+    care_level: primary
+    keywords: [blood test, lab test, pathology test, biochemistry, cbc, urine test, laboratory services]
+    performed_by: [pathology]
+    requires_equipment: [laboratory-analyzer, microscope]
+
+  - id: biopsy
+    label: Biopsy & histopathology
+    category: diagnostic
+    care_level: secondary
+    keywords: [biopsy, histopathology, fnac, cytology]
+    performed_by: [pathology, generalSurgery]
+    requires_equipment: [microscope]
+
+  - id: skin-biopsy
+    label: Skin biopsy
+    category: diagnostic
+    care_level: secondary
+    keywords: [skin biopsy, patch test]
+    performed_by: [dermatology, pathology]
+    requires_equipment: [microscope]
+
+  - id: xray-imaging
+    label: X-ray imaging
+    category: diagnostic
+    care_level: primary
+    keywords: [x-ray, xray, radiograph]
+    performed_by: [radiology]
+    requires_equipment: [xray-machine]
+
+  - id: ultrasound-imaging
+    label: Ultrasound / sonography
+    category: diagnostic
+    care_level: primary
+    keywords: [ultrasound, sonography, usg, doppler]
+    performed_by: [radiology, gynecologyAndObstetrics]
+    requires_equipment: [ultrasound-machine]
+
+  - id: ct-imaging
+    label: CT scan
+    category: diagnostic
+    care_level: tertiary
+    keywords: [ct scan, computed tomography, cect]
+    performed_by: [radiology]
+    requires_equipment: [ct-scanner]
+
+  - id: mri-imaging
+    label: MRI scan
+    category: diagnostic
+    care_level: tertiary
+    keywords: [mri, magnetic resonance]
+    performed_by: [radiology]
+    requires_equipment: [mri-machine]
+
+  - id: mammography-screening
+    label: Mammography screening
+    category: diagnostic
+    care_level: secondary
+    keywords: [mammography, mammogram, breast screening]
+    performed_by: [radiology]
+    requires_equipment: [mammography-unit]
+
+  - id: echocardiography
+    label: Echocardiography
+    category: diagnostic
+    care_level: secondary
+    keywords: [echo, echocardiography, 2d echo]
+    performed_by: [cardiology]
+    requires_equipment: [echo-machine]
+
+  - id: stress-testing
+    label: Cardiac stress testing (TMT)
+    category: diagnostic
+    care_level: secondary
+    keywords: [tmt, treadmill test, stress test]
+    performed_by: [cardiology]
+    requires_equipment: [ecg-machine]
+
+  - id: angiography
+    label: Coronary angiography
+    category: diagnostic
+    care_level: tertiary
+    keywords: [angiography, angiogram, cag]
+    performed_by: [cardiology]
+    requires_equipment: [cath-lab]
+
+  - id: eeg-testing
+    label: EEG / neurodiagnostics
+    category: diagnostic
+    care_level: tertiary
+    keywords: [eeg, electroencephalogram, nerve conduction, emg, neurodiagnostic]
+    performed_by: [neurology]
+    requires_equipment: [eeg-machine]
+
+  - id: pulmonary-function-testing
+    label: Pulmonary function testing
+    category: diagnostic
+    care_level: secondary
+    keywords: [pft, spirometry, pulmonary function, lung function]
+    performed_by: [pulmonology]
+    requires_equipment: [spirometer]
+
+  - id: audiometry
+    label: Audiometry / hearing testing
+    category: diagnostic
+    care_level: secondary
+    keywords: [audiometry, hearing test, audiology]
+    performed_by: [otolaryngology]
+    requires_equipment: [audiometer]
+
+  - id: refraction
+    label: Vision testing & refraction
+    category: diagnostic
+    care_level: primary
+    keywords: [refraction, eye testing, vision screening, eye checkup]
+    performed_by: [ophthalmology]
+    requires_equipment: [autorefractor, slit-lamp]
+
+  - id: endoscopy
+    label: Upper GI endoscopy
+    category: diagnostic
+    care_level: secondary
+    keywords: [endoscopy, gastroscopy, ogd, upper gi]
+    performed_by: [gastroenterology, generalSurgery]
+    requires_equipment: [endoscopy-system]
+
+  - id: colonoscopy
+    label: Colonoscopy
+    category: diagnostic
+    care_level: tertiary
+    keywords: [colonoscopy, sigmoidoscopy]
+    performed_by: [gastroenterology]
+    requires_equipment: [endoscopy-system]
+
+  - id: cancer-screening
+    label: Cancer screening
+    category: preventive
+    care_level: secondary
+    keywords: [cancer screening, pap smear, cervical screening, oral cancer screening]
+    performed_by: [medicalOncology, gynecologyAndObstetrics]
+    requires_equipment: [laboratory-analyzer]
+
+  # ── Therapies ─────────────────────────────────────────────────
+  - id: hemodialysis
+    label: Hemodialysis
+    category: therapy
+    care_level: tertiary
+    keywords: [hemodialysis, haemodialysis, dialysis]
+    performed_by: [nephrology]
+    requires_equipment: [dialysis-machine, ro-water-plant]
+
+  - id: peritoneal-dialysis
+    label: Peritoneal dialysis
+    category: therapy
+    care_level: tertiary
+    keywords: [peritoneal dialysis, capd]
+    performed_by: [nephrology]
+    requires_equipment: []
+
+  - id: chemotherapy
+    label: Chemotherapy
+    category: therapy
+    care_level: tertiary
+    keywords: [chemotherapy, chemo, infusion therapy, day care oncology]
+    performed_by: [medicalOncology]
+    requires_equipment: [chemotherapy-infusion-unit]
+
+  - id: radiotherapy
+    label: Radiotherapy
+    category: therapy
+    care_level: tertiary
+    keywords: [radiotherapy, radiation therapy, linac, cobalt therapy, brachytherapy]
+    performed_by: [radiationOncology]
+    requires_equipment: [linear-accelerator, brachytherapy-unit]
+
+  - id: angioplasty-pci
+    label: Angioplasty / PCI (stenting)
+    category: therapy
+    care_level: tertiary
+    keywords: [angioplasty, pci, stent, ptca]
+    performed_by: [cardiology]
+    requires_equipment: [cath-lab]
+
+  - id: stroke-thrombolysis
+    label: Stroke thrombolysis
+    category: therapy
+    care_level: tertiary
+    keywords: [thrombolysis, stroke treatment, clot busting, tpa]
+    performed_by: [neurology, emergencyMedicine]
+    requires_equipment: [ct-scanner, icu-beds]
+
+  - id: blood-transfusion
+    label: Blood transfusion
+    category: therapy
+    care_level: secondary
+    keywords: [blood transfusion, blood bank services, transfusion]
+    performed_by: [pathology]
+    requires_equipment: [blood-bank]
+
+  # ── Additions from unmatched-claim frequency analysis (2026-07-19) ──
+  # Each concept below covers >100 facilities' worth of previously unmatched
+  # claims found by ontology/load_to_databricks.py's coverage report.
+  - id: dental-implants
+    label: Dental implants
+    category: dental
+    care_level: secondary
+    keywords: [dental implant, dental implants, teeth implants, tooth implant, implant fixing, implantology]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair, dental-xray]
+
+  - id: dentures-prosthetics
+    label: Dentures, crowns & bridges
+    category: dental
+    care_level: primary
+    keywords: [denture, dentures, crowns and bridges, crown and bridge, ceramic crowns]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair]
+
+  - id: cosmetic-dentistry
+    label: Cosmetic dentistry
+    category: dental
+    care_level: secondary
+    keywords: [teeth whitening, tooth whitening, smile designing, smile makeover, cosmetic dentistry, veneers, laser dentistry]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair]
+
+  - id: dental-fillings
+    label: Dental fillings
+    category: dental
+    care_level: primary
+    keywords: [dental filling, dental fillings, tooth filling, cavity filling, composite filling]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair]
+
+  - id: oral-maxillofacial-surgery
+    label: Oral & maxillofacial surgery
+    category: dental
+    care_level: tertiary
+    keywords: [maxillofacial, oral surgery, jaw surgery]
+    performed_by: [dentistry]
+    requires_equipment: [dental-chair, operating-theatre]
+
+  - id: hysteroscopy
+    label: Hysteroscopy
+    category: gynecological
+    care_level: secondary
+    keywords: [hysteroscopy, hysteroscopic]
+    performed_by: [gynecologyAndObstetrics]
+    requires_equipment: [endoscopy-system]
+
+  - id: glaucoma-treatment
+    label: Glaucoma treatment
+    category: surgical
+    care_level: secondary
+    keywords: [glaucoma]
+    performed_by: [ophthalmology]
+    requires_equipment: [slit-lamp, ophthalmic-laser]
+
+  - id: refractive-surgery
+    label: LASIK / refractive surgery
+    category: surgical
+    care_level: tertiary
+    keywords: [lasik, refractive surgery, laser eye surgery, prk]
+    performed_by: [ophthalmology]
+    requires_equipment: [ophthalmic-laser]
+
+  - id: squint-surgery
+    label: Squint (strabismus) surgery
+    category: surgical
+    care_level: tertiary
+    keywords: [squint, strabismus]
+    performed_by: [ophthalmology]
+    requires_equipment: [operating-theatre]
+
+  - id: kidney-transplant
+    label: Kidney transplant
+    category: surgical
+    care_level: tertiary
+    keywords: [kidney transplant, renal transplant]
+    performed_by: [urology, nephrology]
+    requires_equipment: [operating-theatre, icu-beds, dialysis-machine]
+
+  - id: piles-fistula-surgery
+    label: Piles / fistula / anorectal surgery
+    category: surgical
+    care_level: secondary
+    keywords: [piles, fistula, hemorrhoid, haemorrhoid, fissure, anorectal]
+    performed_by: [generalSurgery]
+    requires_equipment: [operating-theatre]
+
+  - id: bronchoscopy
+    label: Bronchoscopy
+    category: diagnostic
+    care_level: tertiary
+    keywords: [bronchoscopy, bronchoscopic, ebus]
+    performed_by: [pulmonology]
+    requires_equipment: [endoscopy-system]

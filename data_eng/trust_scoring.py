@@ -17,6 +17,21 @@ Everything here is transparent and tunable so the app can show its receipts:
 
 Works on the raw `facilities` table where all evidence fields are strings.
 Import this from both the EDA notebook and the Databricks App.
+
+Ontology integration (ontology/*.yaml via ontology_lexicon.py)
+--------------------------------------------------------------
+When the ontology ships next to this module, corroboration stops being
+echo-matching (the same keyword list scanned across every field) and becomes
+edge-based: each field is scanned with its OWN vocabulary derived from the
+concept graph — a "dialysis" claim is corroborated by "RO water treatment
+plant" in `equipment` or "kidney transplant" in `procedure`, evidence a flat
+lexicon cannot see. On top of that:
+  - word-boundary matching (substring `contains` let "icu" match "curriculum")
+  - negated/referral/directory mentions are demoted, with `weak_context_<field>`
+    flags so the app can show WHY a field did not count
+  - `match_advanced_equipment` flags corroboration by advanced-tier kit
+    (cath lab, MRI...) — displayed, never weighted, to stay count-based
+If the YAMLs are absent, everything degrades to the hand lexicon below.
 """
 from functools import reduce
 from operator import add
@@ -24,6 +39,22 @@ import re
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
+
+try:
+    from .ontology_lexicon import (NEGATION_PATTERN, load_lexicon,
+                                   word_boundary_pattern)
+except ImportError:  # supports `%run` / direct execution inside a Databricks folder
+    try:
+        from ontology_lexicon import (NEGATION_PATTERN, load_lexicon,
+                                      word_boundary_pattern)
+    except ImportError:                                # pragma: no cover
+        NEGATION_PATTERN, load_lexicon = None, lambda: None
+
+        def word_boundary_pattern(keywords):
+            parts = [re.escape(k.lower()).replace(r"\ ", "[^a-z0-9]+") for k in keywords]
+            return "(?i)(?<![a-z0-9])(?:" + "|".join(parts) + ")(?![a-z0-9])"
+
+_ONTOLOGY = load_lexicon()
 
 
 # --------------------------------------------------------------------------- #
@@ -86,8 +117,27 @@ def _raw(name: str):
 
 
 def _contains_any(text_col, keywords):
-    """Boolean column: does text_col contain ANY keyword?"""
+    """Boolean column: does text_col contain ANY keyword? (raw substring —
+    only safe for the controlled-vocab `specialties` codes)."""
     return reduce(lambda a, b: a | b, [text_col.contains(k) for k in keywords])
+
+
+def _matches_any(text_col, keywords):
+    """Boolean column: word-boundary match of ANY keyword."""
+    return text_col.rlike(word_boundary_pattern(keywords))
+
+
+def _field_keywords(capability: str, base_kws: list) -> dict:
+    """
+    Per-field keyword sets. With the ontology: field-appropriate vocabularies
+    (edge-based corroboration). Without it: the flat lexicon everywhere.
+    """
+    if _ONTOLOGY is None:
+        return {f: base_kws for f in ("capability", "procedure", "equipment", "description")}
+    proc = list(dict.fromkeys(_ONTOLOGY.procedure_keywords(capability) + base_kws))
+    equip = list(dict.fromkeys(_ONTOLOGY.equipment_keywords(capability) + base_kws))
+    union = list(dict.fromkeys(proc + equip))
+    return {"capability": union, "procedure": proc, "equipment": equip, "description": union}
 
 
 def _int_or_zero(name: str, max_reasonable: int = 10000):
@@ -107,8 +157,8 @@ def _int_or_zero(name: str, max_reasonable: int = 10000):
 
 def _snippet(name: str, keywords):
     """Extract ~50 chars of context around the first keyword hit (a citation)."""
-    pattern = "(?i)(.{0,50}(?:" + "|".join(re.escape(k) for k in keywords) + ").{0,50})"
-    return F.regexp_extract(_raw(name), pattern, 1)
+    kw = word_boundary_pattern(keywords)[4:]        # strip leading (?i), re-add below
+    return F.regexp_extract(_raw(name), "(?i)(.{0,50}" + kw + ".{0,50})", 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -124,6 +174,12 @@ def add_trust_scores(df: DataFrame, capability: str,
     -------------
     match_capability      : int (0/1)  the claim field mentions the capability
     match_<field>         : int (0/1)  per corroborating field (procedure/equipment/description/specialties)
+                            (free-text fields use word-boundary matching on the
+                             ontology's field-specific vocabulary when available)
+    weak_context_<field>  : int (0/1)  a hit existed but read as negation/referral/
+                            directory-listing, so it was demoted (not counted)
+    match_advanced_equipment : int (0/1) equipment corroboration came from
+                            advanced-tier kit (ontology tier) — display only
     n_corroborating       : int   corroborating fields that mention it (0-4)
     n_corrob_present      : int   corroborating fields that have any text (0-4)  -> confidence
     content_trust         : double [0,1] = n_corroborating / n_corrob_present
@@ -137,19 +193,36 @@ def add_trust_scores(df: DataFrame, capability: str,
     if capability not in lexicon:
         raise ValueError(f"Unknown capability '{capability}'. "
                          f"Choose from {sorted(lexicon)}")
-    kws = lexicon[capability]
+    field_kws = _field_keywords(capability, lexicon[capability])
 
     out = df
+    # `specialties` is controlled-vocab codes: hand stems + ontology performed_by ids.
     spec_codes = [c.lower() for c in SPECIALTY_MAP.get(capability, [])]
+    if _ONTOLOGY is not None:
+        spec_codes = list(dict.fromkeys(spec_codes + _ONTOLOGY.specialty_ids(capability)))
 
     # --- claim + per-corroborator match & presence ------------------------ #
-    # `specialties` matches on controlled-vocab CODES; other fields use free-text keywords.
-    out = out.withColumn("match_capability", _contains_any(_txt(CLAIM_FIELD), kws).cast("int"))
+    # Free-text fields use word-boundary matching on their OWN vocabulary; a hit
+    # whose surrounding snippet reads as negation/referral/directory-listing is
+    # demoted to 0 and flagged weak_context_<field> (honest uncertainty).
+    for f in [CLAIM_FIELD, "procedure", "equipment", "description"]:
+        raw_match = _matches_any(_txt(f), field_kws[f])
+        snippet = _snippet(f, field_kws[f])
+        weak = raw_match & (snippet != "") & snippet.rlike(NEGATION_PATTERN) \
+            if NEGATION_PATTERN else F.lit(False)
+        out = out.withColumn(f"match_{f}", (raw_match & ~weak).cast("int"))
+        out = out.withColumn(f"weak_context_{f}", weak.cast("int"))
+    out = out.withColumn("match_specialties",
+                         _contains_any(_txt("specialties"), spec_codes).cast("int")
+                         if spec_codes else F.lit(0))
     for f in CORROBORATING_FIELDS:
-        terms = spec_codes if f == "specialties" else kws
-        match_expr = _contains_any(_txt(f), terms).cast("int") if terms else F.lit(0)
-        out = out.withColumn(f"match_{f}", match_expr)
         out = out.withColumn(f"has_{f}", (F.length(F.trim(_raw(f))) > 0).cast("int"))
+
+    # --- advanced-tier corroboration flag (shown, never weighted) --------- #
+    adv_kws = _ONTOLOGY.advanced_equipment_keywords(capability) if _ONTOLOGY else []
+    out = out.withColumn(
+        "match_advanced_equipment",
+        (_matches_any(_txt("equipment"), adv_kws).cast("int") if adv_kws else F.lit(0)))
 
     # --- counts: how many corroborators agree, of those present ----------- #
     out = out.withColumn("n_corroborating",
@@ -191,9 +264,8 @@ def add_trust_scores(df: DataFrame, capability: str,
 
     # --- citations: the exact snippet each field matched ------------------ #
     if with_snippets:
-        out = out.withColumn("snippet_capability", _snippet(CLAIM_FIELD, kws))
-        for f in ["procedure", "equipment", "description"]:
-            out = out.withColumn(f"snippet_{f}", _snippet(f, kws))
+        for f in [CLAIM_FIELD, "procedure", "equipment", "description"]:
+            out = out.withColumn(f"snippet_{f}", _snippet(f, field_kws[f]))
 
     return out
 
