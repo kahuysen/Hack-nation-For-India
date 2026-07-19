@@ -6,6 +6,7 @@
 
 import { api, type CapabilityItem, type FacilityEvidence, type RegionResult } from "./api"
 import { DUMMY_CAPABILITIES, DUMMY_REGIONS } from "./dummyRegions"
+import { dummyFacilities } from "./dummyFacilities"
 
 // Live by default in any production build — Databricks serves the built dist
 // same-origin with the API, so a prod build should never fall back to dummy.
@@ -29,7 +30,7 @@ export async function fetchFacilities(
   capability: string,
   opts: { state?: string; district?: string } = {},
 ): Promise<FacilityEvidence[]> {
-  if (!USE_API) return [] // dummy facility receipts land in a later step
+  if (!USE_API) return dummyFacilities(opts.state, opts.district)
   return api.getFacilities(capability, opts)
 }
 

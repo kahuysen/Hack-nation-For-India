@@ -21,9 +21,11 @@ const isState = (f: object): f is TaggedFeature =>
 export function Globe({
   capability,
   regions,
+  onSelectState,
 }: {
   capability: string
   regions: RegionResult[]
+  onSelectState?: (state: string) => void
 }) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -97,6 +99,14 @@ export function Globe({
           atmosphereColor="#3b82f6"
           atmosphereAltitude={0.18}
           polygonsData={polygons}
+          onPolygonClick={(f: object) => {
+            const tf = f as TaggedFeature
+            if (!isState(tf) || !onSelectState) return
+            const name = tf.properties.state ?? ""
+            // Prefer the region's canonical state name so the panel query matches
+            // the data (GeoJSON uses alias spellings, e.g. Orissa vs Odisha).
+            onSelectState(regionForState(name)?.state ?? name)
+          }}
           polygonCapColor={(f: object) => {
             const tf = f as TaggedFeature
             if (!isState(tf)) return LAND_COLOR
