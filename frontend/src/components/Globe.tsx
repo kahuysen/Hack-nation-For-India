@@ -11,6 +11,7 @@ import {
   type RegionResult,
 } from "@/lib/api"
 import { STATE_ALIAS } from "@/lib/dummyRegions"
+import { canonicalStateName } from "@/lib/states"
 
 const WATER_COLOR = 0x171717 // deep neutral ocean
 const LAND_COLOR = "#e5e5e5" // pale land fill (rest of world)
@@ -61,7 +62,7 @@ export function Globe({
   // whole state has too few records — not when one thin sub-district does.
   const byState = useMemo(() => aggregateRegionsByState(regions), [regions])
   const regionForState = (name: string): RegionResult | undefined => {
-    const key = name.toLowerCase()
+    const key = canonicalStateName(name)?.toLowerCase() ?? name.toLowerCase()
     return byState.get(STATE_ALIAS[key] ?? key)
   }
 

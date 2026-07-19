@@ -1,3 +1,5 @@
+import { canonicalStateName } from "@/lib/states"
+
 // Typed client for the Medical Desert Planner API (v2.0.0).
 // Contract mirrors api/openapi.json. The deployed app sits behind Databricks
 // SSO, so live calls only work same-origin (inside the Databricks App) — locally
@@ -157,10 +159,13 @@ const round = (x: number, p: number) => {
 export function aggregateRegionsByState(regions: RegionResult[]): Map<string, RegionResult> {
   const groups = new Map<string, RegionResult[]>()
   for (const r of regions) {
-    const key = r.state.toLowerCase()
+    const state = canonicalStateName(r.state)
+    if (!state) continue
+    const normalized = state === r.state ? r : { ...r, state }
+    const key = state.toLowerCase()
     const g = groups.get(key)
-    if (g) g.push(r)
-    else groups.set(key, [r])
+    if (g) g.push(normalized)
+    else groups.set(key, [normalized])
   }
 
   const out = new Map<string, RegionResult>()

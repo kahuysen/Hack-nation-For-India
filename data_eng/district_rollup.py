@@ -27,10 +27,12 @@ try:
     from .trust_scoring import add_trust_scores, add_facility_trust
     from .source_trust import add_source_trust
     from .capability_need import add_need_score
+    from .states import CANONICAL_STATE_BY_KEY, CANONICAL_STATE_KEYS, STATE_ALIASES
 except ImportError:  # supports `%run` / direct execution inside a Databricks folder
     from trust_scoring import add_trust_scores, add_facility_trust
     from source_trust import add_source_trust
     from capability_need import add_need_score
+    from states import CANONICAL_STATE_BY_KEY, CANONICAL_STATE_KEYS, STATE_ALIASES
 
 # --- column config (ADJUST to the real india_post_pincode_directory schema) --- #
 FAC_PIN = "address_zipOrPostcode"
@@ -56,13 +58,18 @@ def _norm(col):
 
 
 def _norm_state(col):
-    """Normalize common postal/NFHS state aliases before joining."""
+    """Normalize common postal/NFHS state aliases to an uppercase join key."""
     normalized = _norm(col)
-    return (F.when(normalized.isin("NCT OF DELHI", "NCT DELHI"), "DELHI")
-             .when(normalized == "ORISSA", "ODISHA")
-             .when(normalized == "PONDICHERRY", "PUDUCHERRY")
-             .when(normalized == "UTTARANCHAL", "UTTARAKHAND")
-             .otherwise(normalized))
+    entries = [item for pair in STATE_ALIASES.items() for item in pair]
+    aliases = F.create_map(*[F.lit(item) for item in entries])
+    return F.coalesce(F.element_at(aliases, normalized), normalized)
+
+
+def _canonical_state(col):
+    """Return one official display name, or null for malformed source values."""
+    entries = [item for pair in CANONICAL_STATE_BY_KEY.items() for item in pair]
+    names = F.create_map(*[F.lit(item) for item in entries])
+    return F.element_at(names, _norm_state(col))
 
 
 def attach_district(scored: DataFrame, pincodes: DataFrame) -> DataFrame:
@@ -80,7 +87,8 @@ def attach_district(scored: DataFrame, pincodes: DataFrame) -> DataFrame:
             # the district rollup both flow through here, so postal 'RAJASTHAN',
             # NFHS 'Rajasthan' and 'Orissa'/'Odisha' collapse to one spelling — no
             # duplicate states in the map/dropdown, and facility filters still match.
-            .withColumn("state", _norm_state(F.coalesce("state", "address_stateOrRegion")))
+            .withColumn("state", _canonical_state(
+                F.coalesce("state", "address_stateOrRegion")))
             .withColumn("district", F.coalesce("district", "address_city", "area")))
 
 
@@ -96,7 +104,7 @@ def build_facility_table(fac: DataFrame, pincodes: DataFrame, capability: str,
 
 def aggregate_district(scored_geo: DataFrame) -> DataFrame:
     """Roll facilities up to trust-weighted district supply + a centroid for markers."""
-    return (scored_geo.where(F.col("district").isNotNull())
+    return (scored_geo.where(F.col("state").isNotNull() & F.col("district").isNotNull())
             .groupBy("state", "district")
             .agg(
                  F.count("*").alias("n_records"),
@@ -131,6 +139,7 @@ def build_district_from_scored(scored_geo: DataFrame, nfhs: DataFrame,
     need = (add_need_score(nfhs, capability)
             .withColumn("s_key", _norm_state(F.col("state")))
             .withColumn("d_key", _norm(F.col("district")))
+            .where(F.col("s_key").isin(*CANONICAL_STATE_KEYS))
             .groupBy("s_key", "d_key")
             .agg(F.first("state", ignorenulls=True).alias("need_state"),
                  F.first("district", ignorenulls=True).alias("need_district"),
@@ -145,10 +154,12 @@ def build_district_from_scored(scored_geo: DataFrame, nfhs: DataFrame,
     out = (out
            # supply_state is already canonical (attach_district); normalize the
            # NFHS-only fallback so districts with no facilities match too.
-           .withColumn("state", _norm_state(F.coalesce("supply_state", "need_state")))
+           .withColumn("state", _canonical_state(
+               F.coalesce("supply_state", "need_state")))
            .withColumn("district", F.coalesce("supply_district", "need_district"))
            .drop("s_key", "d_key", "supply_state", "supply_district",
-                 "need_state", "need_district"))
+                 "need_state", "need_district")
+           .where(F.col("state").isNotNull()))
 
     for column in ("n_records", "n_candidates", "claiming", "corroborated", "n_indicators"):
         out = out.withColumn(column, F.coalesce(F.col(column), F.lit(0)).cast("long"))

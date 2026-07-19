@@ -19,6 +19,7 @@ import {
   fetchRegions,
   USE_API,
 } from "@/lib/dataSource"
+import { canonicalStateOptions } from "@/lib/states"
 
 type Tab = "coverage" | "facilities"
 
@@ -79,7 +80,7 @@ function App() {
 
   // Distinct states present in the current rollup, for the panel's filter.
   const states = useMemo(
-    () => Array.from(new Set(regions.map((r) => r.state))).sort(),
+    () => canonicalStateOptions(regions.map((r) => r.state)),
     [regions],
   )
 
