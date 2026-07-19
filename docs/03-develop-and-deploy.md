@@ -40,34 +40,35 @@ git push -u origin feature/<short-name>
 Do not edit the shared Databricks Git folder or use `databricks sync` as the team
 workflow. After review, merge the pull request to `main`.
 
-### 3. Deploy the merged Git commit
+### 3. Pull the merged commit into Databricks and deploy
 
 ```bash
-databricks apps deploy <app-name> \
-  --json '{"git_source": {"branch": "main"}}'
+databricks repos update <git-folder-id-or-path> --branch main
+databricks apps deploy hacknation-for-india \
+  --source-code-path /Workspace/Users/<you>/Hack-nation-For-India-git
 ```
 
-Configure the app's Git repository once before the first Git deployment:
+Create the Databricks Git folder once before the first deployment:
 
 ```bash
-databricks apps create-update <app-name> --json '{
-  "update_mask": "git_repository",
-  "git_repository": {
-    "url": "https://github.com/kahuysen/Hack-nation-For-India",
-    "provider": "gitHub"
-  }
-}'
+databricks repos create \
+  https://github.com/kahuysen/Hack-nation-For-India.git \
+  gitHub \
+  --path /Users/<you>/Hack-nation-For-India-git
 ```
 
-The repository is public, so a service-principal Git credential is not needed.
-For a private repository, configure that credential in the app settings.
+The repository is public, so a Git credential is not needed. For a private
+repository, configure a Databricks Git credential first. The App deploy source
+must be this Git folder, not the older manually uploaded Workspace folder.
 
 ### 4. Debug
 
 - **Logs tab** on the app page: stdout/stderr from your process (import errors, tracebacks).
 - App won't start? Check that `app.yaml`'s `command` is right and every import is in `requirements.txt`.
 
-You can pin `"tag": "v1.0.0"` or `"commit": "<sha>"` instead of a branch. For private repos, the app's service principal needs a git credential (`databricks git-credentials create …`).
+Workspaces that support app-level Git sources can alternatively deploy a branch,
+tag or commit directly. The Git-folder flow above is the setup verified for this
+project and makes the pulled commit visible in the workspace before deployment.
 
 ## Hackathon advice
 
