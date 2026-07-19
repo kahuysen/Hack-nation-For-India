@@ -22,13 +22,16 @@ from pyspark.sql.types import (ArrayType, BooleanType, DoubleType, IntegerType,
                                StringType, StructField, StructType)
 
 try:
-    from domain_tiers import DOMAIN_TIERS, TIER_WEIGHT, DEFAULT_TIER, CREDIBLE_TIERS
+    from .domain_tiers import DOMAIN_TIERS, TIER_WEIGHT, DEFAULT_TIER, CREDIBLE_TIERS
 except ImportError:      # domain_tiers.py not uploaded to the workspace yet
-    DOMAIN_TIERS, DEFAULT_TIER = {}, "unverified_own"
-    TIER_WEIGHT = {"authoritative": 1.0, "primary": 0.9, "official_social": 0.75,
-                   "health_directory": 0.55, "unverified_own": 0.55,
-                   "general_directory": 0.35, "social": 0.2, "irrelevant": 0.0}
-    CREDIBLE_TIERS = {"authoritative", "primary", "official_social", "health_directory"}
+    try:
+        from domain_tiers import DOMAIN_TIERS, TIER_WEIGHT, DEFAULT_TIER, CREDIBLE_TIERS
+    except ImportError:
+        DOMAIN_TIERS, DEFAULT_TIER = {}, "unverified_own"
+        TIER_WEIGHT = {"authoritative": 1.0, "primary": 0.9, "official_social": 0.75,
+                       "health_directory": 0.55, "unverified_own": 0.55,
+                       "general_directory": 0.35, "social": 0.2, "irrelevant": 0.0}
+        CREDIBLE_TIERS = {"authoritative", "primary", "official_social", "health_directory"}
 
 # --------------------------------------------------------------------------- #
 # Source tiers (matched as substrings against the lowercased URL).

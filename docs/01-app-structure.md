@@ -1,62 +1,61 @@
 # 1 · What a Databricks App is made of
 
-A Databricks App is just a folder of files that Databricks runs as a web server on serverless compute. The minimum project looks like this:
+A Databricks App is a folder that Databricks runs as a web server on serverless
+compute. Our full-stack project separates deployable code from the batch data
+pipeline:
 
 ```
-my-app/
-├── app.py            # your app code (Streamlit, Dash, Gradio, Flask, FastAPI…)
-├── app.yaml          # how Databricks should run it (optional but recommended)
+medical-desert-planner/
+├── backend/          # FastAPI application
+├── frontend/         # React/Vite source and production build
+├── data_eng/         # Spark scoring and Delta materialization
+├── tests/            # API and cross-layer contract tests
+├── app.yaml          # Databricks runtime command and configuration
 └── requirements.txt  # Python dependencies
 ```
 
-## app.py
+## Backend entry point
 
-The code implementing the app's functionality and UI. Any Python web framework works; Databricks provides templates for **Streamlit, Dash, Gradio, and Flask/FastAPI**. For a data app like ours, Streamlit is the fastest path.
+`backend/app/main.py` assembles the FastAPI routers and serves `frontend/dist`
+when a production frontend build is present. Keeping route, model, database and
+configuration modules separate lets backend work proceed without editing a
+single shared `app.py`.
 
-Minimal Streamlit example:
+Minimal application assembly:
 
 ```python
-import streamlit as st
-import pandas as pd
+from fastapi import FastAPI
 
-st.set_page_config(page_title="My App", layout="wide")
-st.title("Hello Databricks Apps")
-
-df = pd.DataFrame({"region": ["Jaipur", "Patna"], "facilities": [42, 17]})
-st.dataframe(df)
+app = FastAPI()
 ```
 
 ## app.yaml
 
-Defines the app's entry point and environment. If you omit it, Databricks runs the first `.py` file it finds with `python <file>.py` (Node.js apps get `npm run start`) — for Streamlit you **must** specify the command:
+Defines the app entry point and environment:
 
 ```yaml
-command: ['streamlit', 'run', 'app.py']
+command: ['uvicorn', 'backend.app.main:app', '--host', '0.0.0.0', '--port', '8000']
 env:
-  - name: 'STREAMLIT_GATHER_USAGE_STATS'
-    value: 'false'
   - name: 'DATABRICKS_WAREHOUSE_ID'
     value: '<your-sql-warehouse-id>'
 ```
 
 Notes:
 
-- The command is **not run in a shell** — shell env vars aren't available. `DATABRICKS_APP_PORT` is substituted at runtime; your server must listen on it (Streamlit templates handle this).
+- The command is **not run in a shell**; pass each argument as a YAML list item.
 - `env` entries take either a hardcoded `value` or `valueFrom` to reference a secret/resource.
-- Example for a Flask app behind gunicorn:
-
-  ```yaml
-  command: [gunicorn, 'app:app', '-w', '4']
-  ```
+- Databricks supplies the deployed app identity. The backend obtains its OAuth
+  credentials through the Databricks SDK and never sends them to React.
 
 ## requirements.txt
 
 Standard pip requirements, installed when the app deploys. Pin versions so the deployed app matches what you tested locally:
 
 ```
-streamlit==1.41.1
-pandas==2.2.3
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
 databricks-sql-connector==3.7.0
+databricks-sdk>=0.38.0,<1
 ```
 
 Next: [2 · Create your first app](02-create-first-app.md)

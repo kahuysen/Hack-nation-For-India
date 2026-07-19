@@ -2,62 +2,122 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Medical Desert Planner API",
-    "summary": "Track 2 backend for finding high-risk healthcare gaps across India.",
-    "description": "Combines trust-weighted capability evidence from 10,088 facilities with NFHS-5 district health indicators and reports uncertainty honestly.",
-    "version": "1.0.0"
+    "summary": "Track 2 backend for evidence-weighted healthcare gap planning.",
+    "description": "Serves batch-computed facility trust, source provenance, NFHS-5 need, and district medical-desert classifications from Unity Catalog tables.",
+    "version": "2.0.0"
   },
   "paths": {
     "/api/health": {
       "get": {
-        "tags": ["Operations"],
-        "summary": "Check backend readiness",
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Check API and pipeline readiness",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
             "description": "Successful Response",
-            "content": {"application/json": {"schema": {}}}
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           }
         }
       }
     },
     "/api/capabilities": {
       "get": {
-        "tags": ["Planning"],
+        "tags": [
+          "Planning"
+        ],
         "summary": "List Capabilities",
-        "description": "List the capability values accepted by the scoring endpoints.",
         "operationId": "list_capabilities_api_capabilities_get",
         "responses": {
           "200": {
             "description": "Successful Response",
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CapabilityList"}}}
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityList"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/regions": {
       "get": {
-        "tags": ["Planning"],
+        "tags": [
+          "Planning"
+        ],
         "summary": "Rank Regions",
-        "description": "Rank geographies by health need, care gap, and confidence in the evidence.",
+        "description": "Rank districts using the materialized Spark pipeline's risk score.",
         "operationId": "rank_regions_api_regions_get",
         "parameters": [
           {
             "name": "capability",
             "in": "query",
             "required": true,
-            "schema": {"type": "string", "examples": ["NICU"], "title": "Capability"}
+            "schema": {
+              "type": "string",
+              "examples": [
+                "nicu"
+              ],
+              "title": "Capability"
+            }
           },
           {
-            "name": "level",
+            "name": "state",
             "in": "query",
             "required": false,
-            "schema": {"enum": ["state", "district"], "type": "string", "default": "district", "title": "Level"}
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "verdict",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "covered",
+                    "watch",
+                    "medical_desert",
+                    "underserved_need_unknown",
+                    "data_desert"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Verdict"
+            }
           },
           {
             "name": "limit",
             "in": "query",
             "required": false,
-            "schema": {"type": "integer", "maximum": 706, "minimum": 1, "default": 50, "title": "Limit"}
+            "schema": {
+              "type": "integer",
+              "maximum": 706,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
           }
         ],
         "responses": {
@@ -67,7 +127,9 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {"$ref": "#/components/schemas/RegionResult"},
+                  "items": {
+                    "$ref": "#/components/schemas/RegionResult"
+                  },
                   "title": "Response Rank Regions Api Regions Get"
                 }
               }
@@ -75,41 +137,91 @@
           },
           "422": {
             "description": "Validation Error",
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/facilities": {
       "get": {
-        "tags": ["Evidence"],
+        "tags": [
+          "Evidence"
+        ],
         "summary": "Facility Evidence",
-        "description": "Return the facility-level evidence behind a regional score.",
+        "description": "Return precomputed facility evidence behind the district classification.",
         "operationId": "facility_evidence_api_facilities_get",
         "parameters": [
           {
             "name": "capability",
             "in": "query",
             "required": true,
-            "schema": {"type": "string", "examples": ["Emergency care"], "title": "Capability"}
+            "schema": {
+              "type": "string",
+              "examples": [
+                "emergency"
+              ],
+              "title": "Capability"
+            }
           },
           {
             "name": "state",
             "in": "query",
             "required": false,
-            "schema": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "State"}
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
           },
           {
             "name": "district",
             "in": "query",
             "required": false,
-            "schema": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "District"}
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "District"
+            }
+          },
+          {
+            "name": "candidates_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Candidates Only"
+            }
           },
           {
             "name": "limit",
             "in": "query",
             "required": false,
-            "schema": {"type": "integer", "maximum": 500, "minimum": 1, "default": 100, "title": "Limit"}
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
           }
         ],
         "responses": {
@@ -119,7 +231,9 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {"$ref": "#/components/schemas/FacilityEvidence"},
+                  "items": {
+                    "$ref": "#/components/schemas/FacilityEvidence"
+                  },
                   "title": "Response Facility Evidence Api Facilities Get"
                 }
               }
@@ -127,7 +241,13 @@
           },
           "422": {
             "description": "Validation Error",
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -135,77 +255,399 @@
   },
   "components": {
     "schemas": {
-      "CapabilityList": {
+      "CapabilityItem": {
         "properties": {
-          "capabilities": {"items": {"type": "string"}, "type": "array", "title": "Capabilities"}
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "has_need_signal": {
+            "type": "boolean",
+            "title": "Has Need Signal"
+          }
         },
         "type": "object",
-        "required": ["capabilities"],
+        "required": [
+          "id",
+          "label",
+          "has_need_signal"
+        ],
+        "title": "CapabilityItem"
+      },
+      "CapabilityList": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityItem"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilities"
+        ],
         "title": "CapabilityList"
+      },
+      "EvidenceItem": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "snippet"
+        ],
+        "title": "EvidenceItem"
       },
       "FacilityEvidence": {
         "properties": {
-          "facility_id": {"type": "string", "title": "Facility Id"},
-          "name": {"type": "string", "title": "Name"},
-          "state": {"type": "string", "title": "State"},
-          "district": {"type": "string", "title": "District"},
-          "pin": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Pin"},
-          "tier": {"type": "string", "title": "Tier"},
-          "trust_weight": {"type": "number", "title": "Trust Weight"},
-          "knowledge": {"type": "number", "title": "Knowledge"},
+          "capability_id": {
+            "type": "string",
+            "title": "Capability Id"
+          },
+          "facility_id": {
+            "type": "string",
+            "title": "Facility Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "district": {
+            "type": "string",
+            "title": "District"
+          },
+          "pin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pin"
+          },
+          "is_candidate": {
+            "type": "integer",
+            "title": "Is Candidate"
+          },
+          "claiming": {
+            "type": "integer",
+            "title": "Claiming"
+          },
+          "n_corroborating": {
+            "type": "integer",
+            "title": "N Corroborating"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "moderate",
+              "weak",
+              "none"
+            ],
+            "title": "Tier"
+          },
+          "trust_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Trust Weight"
+          },
+          "knowledge": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Knowledge"
+          },
+          "source_trust": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Source Trust"
+          },
+          "data_confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Data Confidence"
+          },
           "evidence": {
             "items": {
-              "prefixItems": [{"type": "string"}, {"type": "string"}],
-              "type": "array",
-              "maxItems": 2,
-              "minItems": 2
+              "$ref": "#/components/schemas/EvidenceItem"
             },
             "type": "array",
             "title": "Evidence"
           },
-          "description": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Description"},
-          "latitude": {"anyOf": [{"type": "number"}, {"type": "null"}], "title": "Latitude"},
-          "longitude": {"anyOf": [{"type": "number"}, {"type": "null"}], "title": "Longitude"},
-          "source_urls": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Source Urls"}
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "source_urls": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Urls"
+          }
         },
         "type": "object",
-        "required": ["facility_id", "name", "state", "district", "tier", "trust_weight", "knowledge", "evidence"],
+        "required": [
+          "capability_id",
+          "facility_id",
+          "name",
+          "state",
+          "district",
+          "is_candidate",
+          "claiming",
+          "n_corroborating",
+          "tier",
+          "trust_weight",
+          "knowledge",
+          "source_trust",
+          "data_confidence",
+          "evidence"
+        ],
         "title": "FacilityEvidence"
       },
       "HTTPValidationError": {
         "properties": {
-          "detail": {"items": {"$ref": "#/components/schemas/ValidationError"}, "type": "array", "title": "Detail"}
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
         },
         "type": "object",
         "title": "HTTPValidationError"
       },
       "RegionResult": {
         "properties": {
-          "region": {"type": "string", "title": "Region"},
-          "facilities": {"type": "integer", "title": "Facilities"},
-          "claiming": {"type": "integer", "title": "Claiming"},
-          "corroborated": {"type": "integer", "title": "Corroborated"},
-          "coverage": {"type": "number", "maximum": 1.0, "minimum": 0.0, "title": "Coverage"},
-          "knowledge": {"type": "number", "maximum": 1.0, "minimum": 0.0, "title": "Knowledge"},
-          "health_need": {
-            "anyOf": [{"type": "number", "maximum": 1.0, "minimum": 0.0}, {"type": "null"}],
-            "title": "Health Need"
+          "capability_id": {
+            "type": "string",
+            "title": "Capability Id"
           },
-          "priority_score": {"type": "number", "maximum": 1.0, "minimum": 0.0, "title": "Priority Score"},
-          "status": {"type": "string", "title": "Status"}
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "district": {
+            "type": "string",
+            "title": "District"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "n_records": {
+            "type": "integer",
+            "title": "N Records"
+          },
+          "n_candidates": {
+            "type": "integer",
+            "title": "N Candidates"
+          },
+          "claiming": {
+            "type": "integer",
+            "title": "Claiming"
+          },
+          "corroborated": {
+            "type": "integer",
+            "title": "Corroborated"
+          },
+          "trust_weighted_supply": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Trust Weighted Supply"
+          },
+          "coverage": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Coverage"
+          },
+          "knowledge": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Knowledge"
+          },
+          "mean_source_trust": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Mean Source Trust"
+          },
+          "need_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Score"
+          },
+          "n_indicators": {
+            "type": "integer",
+            "title": "N Indicators"
+          },
+          "data_confidence": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "thin",
+              "data_desert"
+            ],
+            "title": "Data Confidence"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "covered",
+              "watch",
+              "medical_desert",
+              "underserved_need_unknown",
+              "data_desert"
+            ],
+            "title": "Verdict"
+          },
+          "risk_score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Risk Score"
+          }
         },
         "type": "object",
-        "required": ["region", "facilities", "claiming", "corroborated", "coverage", "knowledge", "priority_score", "status"],
+        "required": [
+          "capability_id",
+          "state",
+          "district",
+          "n_records",
+          "n_candidates",
+          "claiming",
+          "corroborated",
+          "trust_weighted_supply",
+          "coverage",
+          "knowledge",
+          "mean_source_trust",
+          "n_indicators",
+          "data_confidence",
+          "verdict",
+          "risk_score"
+        ],
         "title": "RegionResult"
       },
       "ValidationError": {
         "properties": {
-          "loc": {"items": {"anyOf": [{"type": "string"}, {"type": "integer"}]}, "type": "array", "title": "Location"},
-          "msg": {"type": "string", "title": "Message"},
-          "type": {"type": "string", "title": "Error Type"}
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
         },
         "type": "object",
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError"
       }
     }

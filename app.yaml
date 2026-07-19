@@ -1,0 +1,10 @@
+command: ['uvicorn', 'backend.app.main:app', '--host', '0.0.0.0', '--port', '8000']
+env:
+  - name: 'DATABRICKS_WAREHOUSE_ID'
+    value: '8629e2ec9fce0130'
+  - name: 'DATABRICKS_WORKSPACE_HOST'
+    value: 'https://dbc-1aa1c463-f7d2.cloud.databricks.com'
+  - name: 'FACILITY_SCORES_TABLE'
+    value: 'workspace.default.facility_capability_scores'
+  - name: 'DISTRICT_SCORES_TABLE'
+    value: 'workspace.default.district_capability_scores'

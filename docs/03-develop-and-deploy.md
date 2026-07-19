@@ -13,11 +13,11 @@ databricks auth login --host https://<your-workspace>.cloud.databricks.com
 
 ### 1. Run locally
 
-Plain framework run works fine:
+Run FastAPI from the repository root:
 
 ```bash
 pip install -r requirements.txt
-streamlit run app.py
+uvicorn backend.app.main:app --reload
 ```
 
 Or use the CLI's local runner, which mimics the app runtime (reads `app.yaml`, injects env):
@@ -26,47 +26,51 @@ Or use the CLI's local runner, which mimics the app runtime (reads `app.yaml`, i
 databricks apps run-local --prepare-environment --debug
 ```
 
-### 2. Sync your code to the workspace
+### 2. Push through GitHub
 
-From the project folder:
+GitHub is the source of truth for the four-person team. Work on a short-lived
+branch and use a pull request:
 
 ```bash
-databricks sync --watch . /Workspace/Users/<you>/databricks_apps/<app-name>
+git switch -c feature/<short-name>
+git pull --rebase origin main
+git push -u origin feature/<short-name>
 ```
 
-`--watch` keeps uploading as you save files. Files matched by `.gitignore` are excluded — keep `.venv/`, `__pycache__/` etc. in there.
+Do not edit the shared Databricks Git folder or use `databricks sync` as the team
+workflow. After review, merge the pull request to `main`.
 
-### 3. Deploy
+### 3. Deploy the merged Git commit
 
 ```bash
 databricks apps deploy <app-name> \
-  --source-code-path /Workspace/Users/<you>/databricks_apps/<app-name>
+  --json '{"git_source": {"branch": "main"}}'
 ```
 
-Tip: the app's **Overview page** shows this exact command pre-filled for your app. Deploys take ~30s; the app restarts with the new code.
+Configure the app's Git repository once before the first Git deployment:
+
+```bash
+databricks apps create-update <app-name> --json '{
+  "update_mask": "git_repository",
+  "git_repository": {
+    "url": "https://github.com/kahuysen/Hack-nation-For-India",
+    "provider": "gitHub"
+  }
+}'
+```
+
+The repository is public, so a service-principal Git credential is not needed.
+For a private repository, configure that credential in the app settings.
 
 ### 4. Debug
 
 - **Logs tab** on the app page: stdout/stderr from your process (import errors, tracebacks).
 - App won't start? Check that `app.yaml`'s `command` is right and every import is in `requirements.txt`.
 
-## Alternative: deploy straight from GitHub
-
-Attach this repo to the app, then deploy a branch:
-
-```bash
-databricks apps create-update <app-name> --json '{
-  "update_mask": "git_repository",
-  "git_repository": {"url": "https://github.com/kahuysen/Hack-nation-For-India", "provider": "gitHub"}
-}'
-
-databricks apps deploy <app-name> --json '{"git_source": {"branch": "main"}}'
-```
-
 You can pin `"tag": "v1.0.0"` or `"commit": "<sha>"` instead of a branch. For private repos, the app's service principal needs a git credential (`databricks git-credentials create …`).
 
 ## Hackathon advice
 
-Deploy a hello-world **on day one**. Deployment friction is the classic hackathon killer, and "works reliably in a live demo on Free Edition" is 25% of the score. Once the pipeline works, `sync` + `deploy` after every meaningful change so the deployed app never drifts far from local.
+Deploy a hello-world **on day one**. Deployment friction is the classic hackathon killer, and "works reliably in a live demo on Free Edition" is 25% of the score. Keep `main` deployable and deploy from GitHub after each reviewed merge.
 
 Next: [4 · Connecting data & persistence](04-data-and-persistence.md)
