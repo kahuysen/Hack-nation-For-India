@@ -28,7 +28,7 @@ def rank_regions(
     capability: str = Query(..., examples=["nicu"]),
     state: str | None = None,
     verdict: Verdict | None = None,
-    limit: int = Query(50, ge=1, le=706),
+    limit: int = Query(50, ge=1, le=2000),
 ):
     """Rank districts using the materialized Spark pipeline's risk score."""
     resolved_id = capability_id(capability)

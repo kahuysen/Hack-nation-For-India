@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { GlobeStage } from "@/components/GlobeStage"
 import { FacilityPanel } from "@/components/FacilityPanel"
 import {
@@ -9,8 +9,9 @@ import {
   type RegionResult,
 } from "@/lib/api"
 import { fetchCapabilities, fetchRegions, USE_API } from "@/lib/dataSource"
-import { canonicalStateOptions } from "@/lib/states"
+import { INDIA_STATES } from "@/lib/states"
 
+const STATE_OPTIONS: string[] = [...INDIA_STATES]
 function App() {
   const [capabilities, setCapabilities] = useState<CapabilityItem[]>([])
   const [capability, setCapability] = useState<string>("")
@@ -46,12 +47,6 @@ function App() {
 
   const activeLabel =
     capabilities.find((c) => c.id === capability)?.label ?? capability
-
-  // Distinct states present in the current rollup, for the panel's filter.
-  const states = useMemo(
-    () => canonicalStateOptions(regions.map((r) => r.state)),
-    [regions],
-  )
 
   const openStatePanel = (state: string) => {
     setSelectedState(state)
@@ -131,7 +126,7 @@ function App() {
           capabilityLabel={activeLabel}
           state={selectedState}
           district={districtFilter}
-          states={states}
+          states={STATE_OPTIONS}
           onStateChange={setSelectedState}
           onDistrictChange={setDistrictFilter}
           onClose={() => setPanelOpen(false)}

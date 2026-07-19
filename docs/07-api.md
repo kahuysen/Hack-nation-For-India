@@ -46,7 +46,7 @@ Ranks districts using the batch pipeline's `risk_score`.
 | `capability` | yes | Stable ID from `/api/capabilities` |
 | `state` | no | Case-insensitive exact filter |
 | `verdict` | no | `covered`, `watch`, `medical_desert`, `underserved_need_unknown`, or `data_desert` |
-| `limit` | no | 1-706; default 50 |
+| `limit` | no | 1-2000; default 50 |
 
 Important response measures:
 

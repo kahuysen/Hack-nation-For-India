@@ -129,7 +129,7 @@ export const facilityTypeColor = (type: string): string =>
   FACILITY_TYPE_COLOR[type] ?? FACILITY_TYPE_COLOR.unknown
 
 // --- district → state rollup ------------------------------------------------ #
-// The API returns district-level rows (up to 706); the map is state-level. We
+// The API returns the full district-level rollup; the map is state-level. We
 // AGGREGATE every district of a state into one synthetic row and RECOMPUTE the
 // verdict, instead of surfacing a single worst-risk district (which let a thin
 // sub-district paint the whole state grey/orange and show a misleading record
@@ -248,7 +248,7 @@ export const api = {
       capability,
       state: opts.state,
       verdict: opts.verdict,
-      limit: opts.limit ?? 706, // full national picture (API caps limit at 706 districts)
+      limit: opts.limit ?? 2000, // full national picture, including unmatched source districts
     }),
 
   getFacilityLocations: () =>

@@ -63,9 +63,3 @@ export function canonicalStateName(value: string): string | null {
     .trim()
   return byKey.get(aliases[key] ?? key) ?? null
 }
-
-export function canonicalStateOptions(values: string[]): string[] {
-  return Array.from(
-    new Set(values.map(canonicalStateName).filter((value): value is string => value !== null)),
-  ).sort((left, right) => left.localeCompare(right, "en", { sensitivity: "base" }))
-}

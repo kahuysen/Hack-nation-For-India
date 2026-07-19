@@ -113,7 +113,7 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 706,
+              "maximum": 2000,
               "minimum": 1,
               "default": 50,
               "title": "Limit"

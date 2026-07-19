@@ -56,7 +56,7 @@ export function Globe({
   )
 
   // Lookup region by GeoJSON state name (alias-aware).
-  // The API returns district-level rows (up to 706); the map is state-level, so
+  // The API returns the full district-level rollup; the map is state-level, so
   // aggregate every district of a state into one synthetic row with a recomputed
   // verdict (see aggregateRegionsByState). A state is only a data desert when the
   // whole state has too few records — not when one thin sub-district does.

@@ -7,6 +7,7 @@ class CanonicalStateTests(unittest.TestCase):
     def test_contract_has_36_unique_states_and_union_territories(self):
         self.assertEqual(len(CANONICAL_STATE_NAMES), 36)
         self.assertEqual(len(set(CANONICAL_STATE_NAMES)), 36)
+        self.assertEqual(CANONICAL_STATE_NAMES, tuple(sorted(CANONICAL_STATE_NAMES)))
 
     def test_common_aliases_have_one_display_name(self):
         self.assertEqual(canonical_state_name("DELHI"), "Delhi")

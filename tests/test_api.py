@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from backend.app.main import app
 from backend.app.routes import evidence, locations, planning
 
 
@@ -32,6 +33,14 @@ LOCATION = {
 
 
 class ApiContractTests(unittest.TestCase):
+    def test_region_limit_supports_the_full_materialized_rollup(self):
+        parameter = next(
+            item
+            for item in app.openapi()["paths"]["/api/regions"]["get"]["parameters"]
+            if item["name"] == "limit"
+        )
+        self.assertEqual(parameter["schema"]["maximum"], 2000)
+
     @patch("backend.app.routes.planning.query_rows", return_value=[REGION])
     def test_region_query_uses_canonical_id(self, query):
         result = planning.rank_regions("NICU", None, None, 50)
