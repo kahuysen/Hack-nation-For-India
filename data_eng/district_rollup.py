@@ -75,7 +75,12 @@ def attach_district(scored: DataFrame, pincodes: DataFrame) -> DataFrame:
     return (scored
             .withColumn("pincode", F.regexp_extract(F.col(FAC_PIN).cast("string"), r"(\d{6})", 1))
             .join(pin_map, "pincode", "left")
-            .withColumn("state", F.coalesce("state", "address_stateOrRegion"))
+            # Canonicalize the emitted state (alias- + case-normalized) at the single
+            # point every downstream table inherits it from: the facility table AND
+            # the district rollup both flow through here, so postal 'RAJASTHAN',
+            # NFHS 'Rajasthan' and 'Orissa'/'Odisha' collapse to one spelling — no
+            # duplicate states in the map/dropdown, and facility filters still match.
+            .withColumn("state", _norm_state(F.coalesce("state", "address_stateOrRegion")))
             .withColumn("district", F.coalesce("district", "address_city", "area")))
 
 
@@ -138,7 +143,9 @@ def build_district_from_scored(scored_geo: DataFrame, nfhs: DataFrame,
               .withColumnRenamed("district", "supply_district"))
     out = supply.join(need, ["s_key", "d_key"], "full")
     out = (out
-           .withColumn("state", F.coalesce("supply_state", "need_state"))
+           # supply_state is already canonical (attach_district); normalize the
+           # NFHS-only fallback so districts with no facilities match too.
+           .withColumn("state", _norm_state(F.coalesce("supply_state", "need_state")))
            .withColumn("district", F.coalesce("supply_district", "need_district"))
            .drop("s_key", "d_key", "supply_state", "supply_district",
                  "need_state", "need_district"))
