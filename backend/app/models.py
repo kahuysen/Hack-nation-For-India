@@ -68,6 +68,16 @@ class FacilityEvidence(BaseModel):
     source_urls: str | None = None
 
 
+class FacilityLocation(BaseModel):
+    facility_id: str
+    name: str
+    facility_type: str
+    state: str
+    district: str
+    latitude: float
+    longitude: float
+
+
 class SimilaritySearchRequest(BaseModel):
     query: str = Field(min_length=2, max_length=500)
     state: str | None = Field(default=None, max_length=100)

@@ -252,6 +252,32 @@
         }
       }
     },
+    "/api/facility-locations": {
+      "get": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Facility Locations",
+        "description": "Return every geolocated facility (all types) as slim map-ready rows.\n\nReturns an empty list instead of failing when the materialized table does\nnot exist yet, so a deploy ahead of the pipeline run degrades gracefully.",
+        "operationId": "facility_locations_api_facility_locations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FacilityLocation"
+                  },
+                  "type": "array",
+                  "title": "Response Facility Locations Api Facility Locations Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/search": {
       "post": {
         "tags": [
@@ -506,6 +532,49 @@
           "evidence"
         ],
         "title": "FacilityEvidence"
+      },
+      "FacilityLocation": {
+        "properties": {
+          "facility_id": {
+            "type": "string",
+            "title": "Facility Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "facility_type": {
+            "type": "string",
+            "title": "Facility Type"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "district": {
+            "type": "string",
+            "title": "District"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "facility_id",
+          "name",
+          "facility_type",
+          "state",
+          "district",
+          "latitude",
+          "longitude"
+        ],
+        "title": "FacilityLocation"
       },
       "HTTPValidationError": {
         "properties": {

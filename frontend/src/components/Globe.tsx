@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import GlobeGL, { type GlobeMethods } from "react-globe.gl"
-import { aggregateRegionsByState, VERDICT_COLOR, VERDICT_LABEL, type RegionResult } from "@/lib/api"
+import {
+  FACILITY_TYPE_LABEL,
+  VERDICT_COLOR,
+  VERDICT_LABEL,
+  aggregateRegionsByState,
+  facilityTypeColor,
+  type FacilityLocation,
+  type RegionResult,
+} from "@/lib/api"
 import { STATE_ALIAS } from "@/lib/dummyRegions"
 
 const WATER_COLOR = 0x0b1f3a // deep blue ocean
 const LAND_COLOR = "#dbe2ea" // pale land fill (rest of world)
 const BORDER_COLOR = "#334155" // slate borders
 const NO_ROLLUP_COLOR = "#3f4a5a" // muted — state absent from the response
+const NEUTRAL_STATE_COLOR = "#1e293b" // dark neutral fill under facility points
 
 type Feature = {
   properties: { ADMIN?: string; state?: string }
@@ -18,15 +27,20 @@ type TaggedFeature = Feature & { __kind: "country" | "state" }
 const isState = (f: object): f is TaggedFeature =>
   (f as TaggedFeature).__kind === "state"
 
+// With `facilities` set, the globe renders one dot per facility over a neutral
+// India instead of the verdict choropleth (regions are then ignored).
 export function Globe({
   capability,
   regions,
+  facilities,
   onSelectState,
 }: {
   capability: string
   regions: RegionResult[]
+  facilities?: FacilityLocation[]
   onSelectState?: (state: string) => void
 }) {
+  const pointsMode = facilities !== undefined
   const globeRef = useRef<GlobeMethods | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -110,6 +124,7 @@ export function Globe({
           polygonCapColor={(f: object) => {
             const tf = f as TaggedFeature
             if (!isState(tf)) return LAND_COLOR
+            if (pointsMode) return NEUTRAL_STATE_COLOR
             const r = regionForState(tf.properties.state ?? "")
             return r ? VERDICT_COLOR[r.verdict] : NO_ROLLUP_COLOR
           }}
@@ -121,9 +136,31 @@ export function Globe({
             isState(f as TaggedFeature) ? 0.016 : 0.006
           }
           polygonsTransitionDuration={0}
+          pointsData={facilities ?? []}
+          pointLat={(p: object) => (p as FacilityLocation).latitude}
+          pointLng={(p: object) => (p as FacilityLocation).longitude}
+          pointColor={(p: object) => facilityTypeColor((p as FacilityLocation).facility_type)}
+          pointAltitude={0.02}
+          pointRadius={0.12}
+          pointResolution={6} // ~10k dots live; cheaper cylinders keep hover usable
+          pointsMerge={false}
+          pointsTransitionDuration={0}
+          pointLabel={(p: object) => {
+            const fac = p as FacilityLocation
+            const typeLabel = FACILITY_TYPE_LABEL[fac.facility_type] ?? fac.facility_type
+            return `
+              <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(15,23,42,.92);
+                          padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);max-width:240px">
+                <div style="font-weight:600;font-size:13px">${fac.name}</div>
+                <div style="color:${facilityTypeColor(fac.facility_type)};font-weight:600;margin:2px 0 4px">
+                  ${typeLabel}
+                </div>
+                <div>${fac.district} · ${fac.state}</div>
+              </div>`
+          }}
           polygonLabel={(f: object) => {
             const tf = f as TaggedFeature
-            if (!isState(tf)) return ""
+            if (!isState(tf) || pointsMode) return ""
             const name = tf.properties.state ?? ""
             const r = regionForState(name)
             if (!r)

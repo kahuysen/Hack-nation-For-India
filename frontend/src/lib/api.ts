@@ -37,6 +37,16 @@ export type RegionResult = {
   risk_score: number
 }
 
+export type FacilityLocation = {
+  facility_id: string
+  name: string
+  facility_type: string
+  state: string
+  district: string
+  latitude: number
+  longitude: number
+}
+
 export type EvidenceItem = { field: string; snippet: string }
 
 export type FacilityEvidence = {
@@ -86,6 +96,35 @@ export const VERDICT_ORDER: Verdict[] = [
   "covered",
   "data_desert",
 ]
+
+// --- facility type presentation (single source of truth for points + legend) - #
+export const FACILITY_TYPE_COLOR: Record<string, string> = {
+  hospital: "#38bdf8", // sky
+  clinic: "#34d399", // emerald
+  dentist: "#fbbf24", // amber
+  doctor: "#f472b6", // pink
+  pharmacy: "#a78bfa", // violet
+  nursing_home: "#fb923c", // orange
+  unknown: "#94a3b8", // slate
+}
+
+export const FACILITY_TYPE_LABEL: Record<string, string> = {
+  hospital: "Hospital",
+  clinic: "Clinic",
+  dentist: "Dentist",
+  doctor: "Doctor",
+  pharmacy: "Pharmacy",
+  nursing_home: "Nursing home",
+  unknown: "Unknown type",
+}
+
+// Legend order: most common first, unknown last.
+export const FACILITY_TYPE_ORDER = [
+  "hospital", "clinic", "dentist", "doctor", "pharmacy", "nursing_home", "unknown",
+]
+
+export const facilityTypeColor = (type: string): string =>
+  FACILITY_TYPE_COLOR[type] ?? FACILITY_TYPE_COLOR.unknown
 
 // --- district → state rollup ------------------------------------------------ #
 // The API returns district-level rows (up to 706); the map is state-level. We
@@ -206,6 +245,9 @@ export const api = {
       verdict: opts.verdict,
       limit: opts.limit ?? 706, // full national picture (API caps limit at 706 districts)
     }),
+
+  getFacilityLocations: () =>
+    get<FacilityLocation[]>("/api/facility-locations", {}),
 
   getFacilities: (capability: string, opts: { state?: string; district?: string; limit?: number } = {}) =>
     get<FacilityEvidence[]>("/api/facilities", {
