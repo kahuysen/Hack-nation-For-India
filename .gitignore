@@ -10,3 +10,5 @@ frontend/node_modules/
 # frontend/dist/ committed so the Databricks App serves the built UI
 data/
 /node_modules/
+.artifacts/
+*.parquet

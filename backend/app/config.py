@@ -13,6 +13,14 @@ class Settings:
         "FACILITY_SCORES_TABLE", "workspace.default.facility_capability_scores")
     district_table: str = os.getenv(
         "DISTRICT_SCORES_TABLE", "workspace.default.district_capability_scores")
+    vector_index: str = os.getenv(
+        "VECTOR_SEARCH_INDEX",
+        "workspace.default.facility_evidence_embeddings_index")
+    embedding_model: str = os.getenv(
+        "VECTOR_EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+    embedding_dimension: int = int(os.getenv("VECTOR_EMBEDDING_DIMENSION", "384"))
+    embedding_cache_dir: str = os.getenv(
+        "VECTOR_EMBEDDING_CACHE_DIR", "/tmp/fastembed_cache")
     local_profile: str | None = os.getenv("DATABRICKS_CONFIG_PROFILE")
 
 

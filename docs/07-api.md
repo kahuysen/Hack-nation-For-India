@@ -80,6 +80,29 @@ evidence snippets, coordinates, and source URLs.
 curl "$BASE/api/facilities?capability=emergency&district=Patna&limit=50"
 ```
 
+## `POST /api/search`
+
+Runs semantic similarity search over the governed Databricks AI Search index.
+Document embeddings are generated locally with `BAAI/bge-small-en-v1.5`, stored
+in a Unity Catalog managed Delta table, and synchronized to AI Search. Query
+embeddings use the same model and dimension.
+
+```json
+{
+  "query": "hospital with neonatal intensive care",
+  "state": "Bihar",
+  "district": "Patna",
+  "limit": 10
+}
+```
+
+`state` and `district` are optional exact-match filters. `limit` accepts 1-50
+and defaults to 10. Results include facility identity, geography, coordinates,
+source URLs, the indexed evidence text, and a similarity score.
+
+The endpoint returns HTTP `503` while the AI Search index is unavailable or
+still synchronizing.
+
 ## Refreshing the checked-in specification
 
 ```powershell

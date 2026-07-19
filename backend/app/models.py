@@ -66,3 +66,30 @@ class FacilityEvidence(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     source_urls: str | None = None
+
+
+class SimilaritySearchRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=500)
+    state: str | None = Field(default=None, max_length=100)
+    district: str | None = Field(default=None, max_length=150)
+    limit: int = Field(default=10, ge=1, le=50)
+
+
+class SimilaritySearchResult(BaseModel):
+    document_id: str
+    facility_id: str
+    name: str
+    state: str
+    district: str
+    facility_type: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    source_urls: str | None = None
+    document_text: str
+    similarity_score: float
+
+
+class SimilaritySearchResponse(BaseModel):
+    query: str
+    model: str
+    results: list[SimilaritySearchResult]

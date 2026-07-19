@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .routes import evidence, operations, planning
+from .routes import evidence, operations, planning, search
 
 app = FastAPI(
     title="Medical Desert Planner API",
@@ -20,6 +20,7 @@ app = FastAPI(
 app.include_router(operations.router)
 app.include_router(planning.router)
 app.include_router(evidence.router)
+app.include_router(search.router)
 
 frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 if frontend_dist.is_dir():
