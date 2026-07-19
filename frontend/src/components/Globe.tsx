@@ -38,8 +38,15 @@ export function Globe({
 
   // Lookup region by GeoJSON state name (alias-aware).
   const byState = useMemo(() => {
+    // The API returns district-level rows (up to 706); the map is state-level.
+    // Surface each state's WORST (highest-risk) district so real deserts are
+    // never hidden behind a better-off district in the same state.
     const m = new Map<string, RegionResult>()
-    for (const r of regions) m.set(r.state.toLowerCase(), r)
+    for (const r of regions) {
+      const key = r.state.toLowerCase()
+      const cur = m.get(key)
+      if (!cur || r.risk_score > cur.risk_score) m.set(key, r)
+    }
     return m
   }, [regions])
   const regionForState = (name: string): RegionResult | undefined => {

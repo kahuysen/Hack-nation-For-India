@@ -111,7 +111,7 @@ export const api = {
       capability,
       state: opts.state,
       verdict: opts.verdict,
-      limit: opts.limit ?? 1000, // pull the full national picture for the map
+      limit: opts.limit ?? 706, // full national picture (API caps limit at 706 districts)
     }),
 
   getFacilities: (capability: string, opts: { state?: string; district?: string; limit?: number } = {}) =>

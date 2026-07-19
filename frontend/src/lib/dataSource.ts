@@ -7,7 +7,12 @@
 import { api, type CapabilityItem, type FacilityEvidence, type RegionResult } from "./api"
 import { DUMMY_CAPABILITIES, DUMMY_REGIONS } from "./dummyRegions"
 
-const USE_API = import.meta.env.VITE_USE_API === "true"
+// Live by default in any production build — Databricks serves the built dist
+// same-origin with the API, so a prod build should never fall back to dummy.
+// Dummy only in `vite dev`, unless a local dev opts into a running backend
+// with VITE_USE_API=true.
+const USE_API =
+  import.meta.env.VITE_USE_API === "true" || import.meta.env.PROD
 
 export async function fetchCapabilities(): Promise<CapabilityItem[]> {
   if (!USE_API) return DUMMY_CAPABILITIES
