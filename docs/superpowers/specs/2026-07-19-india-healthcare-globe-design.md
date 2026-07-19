@@ -53,9 +53,13 @@ region centroid client-side (see Geometry).
 - Clicking a region opens a **facility receipts** panel: the facilities behind
   that region's score, each with its trust `tier` and row-level `evidence`
   citations.
+- **Save / reopen planning scenarios** (and optional notes) so a planner's work
+  survives the session — the Medical Desert Planner track's required persistence
+  step (see the [UI flow](./2026-07-19-medical-desert-planner-ui-flow.md)).
 - Smooth performance (≤ ~706 district markers, not thousands of H3 prisms).
 - Keep the `react-globe.gl` globe aesthetic.
-- **Develop entirely locally** against a mock of the three endpoints.
+- **Develop entirely locally** against a mock of the three endpoints and a local
+  persistence store.
 
 ## Non-goals (deferred)
 
@@ -82,6 +86,13 @@ region centroid client-side (see Geometry).
 - **Local mock is the dev backend.** A tiny local server implements the three
   endpoints from the in-repo sample data so the UI builds with zero Databricks
   dependency. `VITE_API_BASE` switches between the mock and the deployed app.
+- **Persistence behind one interface.** Scenarios + notes go through a
+  `scenarioStore` interface: `localStorage` in dev, **Lakebase** in the deployed
+  Databricks App. Swapping the impl is the only change at packaging time.
+- **Geography input is provisional pending the live API.** v1 uses capability +
+  zoom-driven state/district grain; whether PIN/city search is feasible depends on
+  what `/api/regions` and `/api/facilities` actually accept — to be confirmed
+  against the deployed app before locking the geography UX.
 
 ## Geometry: where region centroids come from
 
@@ -110,19 +121,25 @@ classDiagram
     }
     class CapabilityPicker { +onChange(key) }
     class Globe { +regions +facilities +onViewChange(level) +onRegionClick(region) }
-    class FacilityPanel { +facilities +region }
+    class FacilityPanel { +facilities +region +onSaveScenario +onAddNote }
+    class ScenarioDrawer { +scenarios +onOpen(id) +onDelete(id) }
     class useRegions { +regions +loading }
     class useFacilities { +facilities +loading }
+    class useScenarios { +scenarios +save +remove }
     class apiClient { +getCapabilities() +getRegions() +getFacilities() }
+    class scenarioStore { +save() +list() +get() +delete() }
     class regionCentroids { +stateCentroid(name) +districtCentroid(name) }
 
     App --> CapabilityPicker : NEW
     App --> Globe : MOD
     App --> FacilityPanel : NEW
+    App --> ScenarioDrawer : NEW
     App --> useRegions : NEW
     App --> useFacilities : NEW
+    App --> useScenarios : NEW
     useRegions --> apiClient : NEW
     useFacilities --> apiClient : NEW
+    useScenarios --> scenarioStore : NEW
     Globe --> regionCentroids : NEW
     Globe ..> App : onViewChange / onRegionClick
 ```
@@ -196,6 +213,31 @@ Exact strings come from the API; map defensively (unknown status → neutral gre
   (default `http://localhost:8787` = mock). Swapping to the deployed app is an
   env change only.
 
+## Persistence: scenarios + notes (NEW)
+
+The Medical Desert Planner track *requires* that user work survive a session. All
+persistence goes through one interface so dev and prod differ only in the impl.
+
+```
+scenarioStore
+  saveScenario(scenario) -> id
+  listScenarios() -> Scenario[]
+  getScenario(id) -> Scenario
+  deleteScenario(id)
+
+Scenario = { id, title, capability, level, regions[], viewport, notes[], createdAt }
+Note     = { targetType: "region"|"facility", targetId, text, createdAt }
+```
+
+- **Dev impl:** `localStorage` (`frontend/src/lib/scenarioStore.local.ts`). Zero
+  backend; fully demoable offline.
+- **Prod impl:** **Lakebase** (`scenarioStore.lakebase.ts`) via the FastAPI app —
+  added at packaging time. `App` picks the impl by `import.meta.env`.
+- **Save** captures the current capability, grain, region(s) of interest, map
+  viewport, and any notes. **Reopening** a scenario restores that state.
+- **Notes/overrides** attach to a region or a facility (e.g. *"Called — ICU
+  confirmed"*), stored on the scenario.
+
 ## Path to Databricks (later, one step — not now)
 
 `npm run build` → serve `frontend/dist` as static files from the same FastAPI app
@@ -207,13 +249,18 @@ task once the UI is stable; explicitly **out of scope** for active development.
 - `frontend/src/components/Globe.tsx` — **MOD**: drop H3 machinery; render region
   bubbles + facility markers; emit `onViewChange(level)` / `onRegionClick`.
 - `frontend/src/components/CapabilityPicker.tsx` — **NEW**.
-- `frontend/src/components/FacilityPanel.tsx` — **NEW**: receipts (tier + evidence).
-- `frontend/src/hooks/useRegions.ts`, `useFacilities.ts` — **NEW**.
+- `frontend/src/components/FacilityPanel.tsx` — **NEW**: receipts (tier + evidence)
+  + save-scenario / add-note actions.
+- `frontend/src/components/ScenarioDrawer.tsx` — **NEW**: list / open / delete
+  saved scenarios.
+- `frontend/src/hooks/useRegions.ts`, `useFacilities.ts`, `useScenarios.ts` — **NEW**.
 - `frontend/src/lib/api.ts` — **NEW**: typed client, `VITE_API_BASE`.
+- `frontend/src/lib/scenarioStore.ts` (+ `.local.ts`, later `.lakebase.ts`) — **NEW**:
+  persistence interface + impls.
 - `frontend/src/lib/regionCentroids.ts` (+ vendored district centroid JSON) — **NEW**.
 - `frontend/mock/server.mjs` — **NEW**: local mock of the three endpoints.
-- `frontend/src/App.tsx` — **MOD**: wire picker + globe + panel + state (capability,
-  level, selectedRegion).
+- `frontend/src/App.tsx` — **MOD**: wire picker + globe + panel + scenario drawer +
+  state (capability, level, selectedRegion, scenarios).
 
 ## Error / edge handling
 
@@ -223,12 +270,16 @@ task once the UI is stable; explicitly **out of scope** for active development.
 - API/mock error → non-blocking inline notice; keep last good view.
 - Superseded request → aborted silently.
 - Facility `limit` hit → "showing first N" note (no silent truncation).
+- Scenario save/load failure → inline notice; never lose the in-memory scenario
+  silently.
 
 ## Testing
 
 - Unit: altitude→level threshold; centroid lookup + India-bbox clamp; status→color
   mapping (incl. unknown status).
 - Hooks: `useRegions`/`useFacilities` debounce, cancel superseded, clear on empty.
+- Persistence: `scenarioStore.local` round-trips save → list → get → delete;
+  reopening a scenario restores capability/level/regions/viewport/notes.
 - Mock: endpoints return contract-shaped payloads for each capability.
 - Manual/e2e (Playwright probe as today): pick a capability → status-colored
   region bubbles; zoom → district grain; click a region → facility receipts panel;
