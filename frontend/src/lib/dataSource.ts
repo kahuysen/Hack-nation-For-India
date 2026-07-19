@@ -4,7 +4,8 @@
 // same-origin inside the Databricks App. Enable with VITE_USE_API=true at build
 // time; otherwise (local dev) we serve dummy data shaped to the real contract.
 
-import { api, type CapabilityItem, type FacilityEvidence, type RegionResult } from "./api"
+import { api, type CapabilityItem, type FacilityEvidence, type FacilityLocation, type RegionResult } from "./api"
+import { DUMMY_FACILITY_LOCATIONS } from "./dummyFacilities"
 import { DUMMY_CAPABILITIES, DUMMY_REGIONS } from "./dummyRegions"
 
 // Live by default in any production build — Databricks serves the built dist
@@ -31,6 +32,11 @@ export async function fetchFacilities(
 ): Promise<FacilityEvidence[]> {
   if (!USE_API) return [] // dummy facility receipts land in a later step
   return api.getFacilities(capability, opts)
+}
+
+export async function fetchFacilityLocations(): Promise<FacilityLocation[]> {
+  if (!USE_API) return DUMMY_FACILITY_LOCATIONS
+  return api.getFacilityLocations()
 }
 
 export { USE_API }

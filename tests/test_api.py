@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from backend.app.routes import evidence, planning
+from backend.app.routes import evidence, locations, planning
 
 
 REGION = {
@@ -25,12 +25,28 @@ FACILITY = {
 }
 
 
+LOCATION = {
+    "facility_id": "f-1", "name": "Example Hospital", "facility_type": "hospital",
+    "state": "Bihar", "district": "Patna", "latitude": 25.6, "longitude": 85.1,
+}
+
+
 class ApiContractTests(unittest.TestCase):
     @patch("backend.app.routes.planning.query_rows", return_value=[REGION])
     def test_region_query_uses_canonical_id(self, query):
         result = planning.rank_regions("NICU", None, None, 50)
         self.assertEqual(result[0]["capability_id"], "nicu")
         self.assertEqual(query.call_args.args[1], ["nicu", 50])
+
+    @patch("backend.app.routes.locations.query_rows", return_value=[LOCATION])
+    def test_facility_locations_pass_through(self, _query):
+        result = locations.facility_locations()
+        self.assertEqual(result, [LOCATION])
+
+    @patch("backend.app.routes.locations.query_rows",
+           side_effect=RuntimeError("TABLE_OR_VIEW_NOT_FOUND"))
+    def test_missing_locations_table_degrades_to_empty(self, _query):
+        self.assertEqual(locations.facility_locations(), [])
 
     @patch("backend.app.routes.evidence.query_rows", return_value=[FACILITY])
     def test_empty_evidence_is_removed(self, _query):

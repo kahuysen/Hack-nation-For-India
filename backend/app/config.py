@@ -13,6 +13,8 @@ class Settings:
         "FACILITY_SCORES_TABLE", "workspace.default.facility_capability_scores")
     district_table: str = os.getenv(
         "DISTRICT_SCORES_TABLE", "workspace.default.district_capability_scores")
+    locations_table: str = os.getenv(
+        "FACILITY_LOCATIONS_TABLE", "workspace.default.facility_locations")
     vector_index: str = os.getenv(
         "VECTOR_SEARCH_INDEX",
         "workspace.default.facility_evidence_embeddings_index")

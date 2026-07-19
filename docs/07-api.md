@@ -80,6 +80,23 @@ evidence snippets, coordinates, and source URLs.
 curl "$BASE/api/facilities?capability=emergency&district=Patna&limit=50"
 ```
 
+## `GET /api/facility-locations`
+
+Returns every geolocated facility (all types) as slim rows for the Facilities
+map tab: `facility_id`, `name`, `facility_type`, `state`, `district`,
+`latitude`, `longitude`. No parameters; ~10k rows (~1 MB) fetched in one shot.
+
+Facility types are normalized to `hospital`, `clinic`, `dentist`, `doctor`,
+`pharmacy`, `nursing_home`, or `unknown`; rows without coordinates inside
+India's bounding box are excluded at materialization time.
+
+The endpoint returns an empty list (not an error) while
+`workspace.default.facility_locations` has not been materialized yet.
+
+```bash
+curl "$BASE/api/facility-locations"
+```
+
 ## `POST /api/search`
 
 Runs semantic similarity search over the governed Databricks AI Search index.

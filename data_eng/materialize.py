@@ -7,10 +7,10 @@ from pyspark.sql import functions as F
 
 try:
     from .contracts import CAPABILITIES
-    from .district_rollup import build_district_from_scored, build_facility_table
+    from .district_rollup import attach_district, build_district_from_scored, build_facility_table
 except ImportError:  # direct execution from the data_eng directory in Databricks
     from contracts import CAPABILITIES
-    from district_rollup import build_district_from_scored, build_facility_table
+    from district_rollup import attach_district, build_district_from_scored, build_facility_table
 
 
 SOURCE_CATALOG = "databricks_virtue_foundation_dataset_dais_2026"
@@ -18,6 +18,16 @@ SOURCE_SCHEMA = "virtue_foundation_dataset"
 OUTPUT_SCHEMA = "workspace.default"
 FACILITY_OUTPUT = f"{OUTPUT_SCHEMA}.facility_capability_scores"
 DISTRICT_OUTPUT = f"{OUTPUT_SCHEMA}.district_capability_scores"
+LOCATIONS_OUTPUT = f"{OUTPUT_SCHEMA}.facility_locations"
+
+# The source has ~100 column-shifted rows whose facilityTypeId/lat/lon hold
+# arbitrary strings; coordinates outside India's bounding box are noise.
+INDIA_LAT_MIN, INDIA_LAT_MAX = 6.0, 37.5
+INDIA_LON_MIN, INDIA_LON_MAX = 68.0, 97.5
+
+KNOWN_FACILITY_TYPES = [
+    "hospital", "clinic", "dentist", "doctor", "pharmacy", "nursing_home",
+]
 
 
 def _union(frames: list[DataFrame]) -> DataFrame:
@@ -72,6 +82,29 @@ def _district_contract(districts: DataFrame, capability_id: str,
     )
 
 
+def _locations_contract(facilities: DataFrame, pincodes: DataFrame) -> DataFrame:
+    """One slim row per geolocated facility (every type) for the map view."""
+    located = attach_district(facilities, pincodes)
+    facility_type = F.lower(F.trim(F.col("facilityTypeId")))
+    facility_type = F.when(facility_type == "farmacy", "pharmacy").otherwise(facility_type)
+    facility_type = (F.when(facility_type.isin(KNOWN_FACILITY_TYPES), facility_type)
+                     .otherwise(F.lit("unknown")))
+    return (located
+            .where(F.col("latitude").isNotNull() & F.col("longitude").isNotNull()
+                   & F.col("latitude").between(INDIA_LAT_MIN, INDIA_LAT_MAX)
+                   & F.col("longitude").between(INDIA_LON_MIN, INDIA_LON_MAX))
+            .select(
+                F.col("unique_id").cast("string").alias("facility_id"),
+                F.coalesce(F.col("name").cast("string"), F.lit("Unnamed facility")).alias("name"),
+                facility_type.alias("facility_type"),
+                F.coalesce(F.col("state").cast("string"), F.lit("Unknown")).alias("state"),
+                F.coalesce(F.col("district").cast("string"), F.lit("Unknown")).alias("district"),
+                F.col("latitude").cast("double"),
+                F.col("longitude").cast("double"),
+            )
+            .dropDuplicates(["facility_id"]))
+
+
 def materialize_all(spark, output_schema: str = OUTPUT_SCHEMA) -> dict:
     """Score all supported capabilities and overwrite the two API-facing tables."""
     source = f"{SOURCE_CATALOG}.{SOURCE_SCHEMA}"
@@ -94,8 +127,15 @@ def materialize_all(spark, output_schema: str = OUTPUT_SCHEMA) -> dict:
 
     facility_output = f"{output_schema}.facility_capability_scores"
     district_output = f"{output_schema}.district_capability_scores"
+    locations_output = f"{output_schema}.facility_locations"
     _union(facility_frames).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
         facility_output)
     _union(district_frames).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
         district_output)
-    return {"facility_table": facility_output, "district_table": district_output}
+    _locations_contract(facilities, pincodes).write.mode("overwrite").option(
+        "overwriteSchema", "true").saveAsTable(locations_output)
+    return {
+        "facility_table": facility_output,
+        "district_table": district_output,
+        "locations_table": locations_output,
+    }

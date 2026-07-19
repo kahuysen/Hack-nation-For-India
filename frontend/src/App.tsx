@@ -1,12 +1,31 @@
 import { useEffect, useState } from "react"
 import { Globe } from "@/components/Globe"
-import { VERDICT_COLOR, VERDICT_LABEL, VERDICT_ORDER, type CapabilityItem, type RegionResult } from "@/lib/api"
-import { fetchCapabilities, fetchRegions, USE_API } from "@/lib/dataSource"
+import {
+  FACILITY_TYPE_COLOR,
+  FACILITY_TYPE_LABEL,
+  FACILITY_TYPE_ORDER,
+  VERDICT_COLOR,
+  VERDICT_LABEL,
+  VERDICT_ORDER,
+  type CapabilityItem,
+  type FacilityLocation,
+  type RegionResult,
+} from "@/lib/api"
+import {
+  fetchCapabilities,
+  fetchFacilityLocations,
+  fetchRegions,
+  USE_API,
+} from "@/lib/dataSource"
+
+type Tab = "coverage" | "facilities"
 
 function App() {
+  const [tab, setTab] = useState<Tab>("coverage")
   const [capabilities, setCapabilities] = useState<CapabilityItem[]>([])
   const [capability, setCapability] = useState<string>("")
   const [regions, setRegions] = useState<RegionResult[]>([])
+  const [facilities, setFacilities] = useState<FacilityLocation[] | null>(null)
   const [loading, setLoading] = useState(false)
 
   // Load the capability catalog once.
@@ -33,8 +52,37 @@ function App() {
     }
   }, [capability])
 
+  // Load facility locations once, the first time the tab opens (~1 MB live).
+  useEffect(() => {
+    if (tab !== "facilities" || facilities !== null) return
+    let cancelled = false
+    setLoading(true)
+    fetchFacilityLocations()
+      .then((f) => !cancelled && setFacilities(f))
+      .catch((e) => console.error("facility locations load failed", e))
+      // Unconditional: setting `facilities` re-runs this effect, whose cleanup
+      // flips `cancelled` before this finally fires — gating would strand the
+      // header in "loading…".
+      .finally(() => setLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [tab, facilities])
+
   const activeLabel =
     capabilities.find((c) => c.id === capability)?.label ?? capability
+
+  const typeCounts = new Map<string, number>()
+  for (const f of facilities ?? []) {
+    typeCounts.set(f.facility_type, (typeCounts.get(f.facility_type) ?? 0) + 1)
+  }
+
+  const tabClass = (t: Tab) =>
+    `rounded-md px-3 py-1.5 text-sm transition-colors ${
+      tab === t
+        ? "bg-slate-800 text-slate-100"
+        : "text-slate-400 hover:text-slate-200"
+    }`
 
   return (
     <div className="flex min-h-svh flex-col bg-slate-950 text-slate-100">
@@ -49,46 +97,92 @@ function App() {
             {loading && <span className="ml-2 text-slate-500">loading…</span>}
           </p>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-slate-400">Capability</span>
-          <select
-            value={capability}
-            onChange={(e) => setCapability(e.target.value)}
-            className="rounded-md border border-white/15 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-blue-400"
-          >
-            {capabilities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex items-center gap-4">
+          <nav className="flex gap-1 rounded-lg border border-white/10 bg-slate-900 p-1">
+            <button className={tabClass("coverage")} onClick={() => setTab("coverage")}>
+              Coverage
+            </button>
+            <button className={tabClass("facilities")} onClick={() => setTab("facilities")}>
+              Facilities
+            </button>
+          </nav>
+          {tab === "coverage" && (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-slate-400">Capability</span>
+              <select
+                value={capability}
+                onChange={(e) => setCapability(e.target.value)}
+                className="rounded-md border border-white/15 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-blue-400"
+              >
+                {capabilities.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       </header>
 
       <main className="relative flex-1 overflow-hidden bg-slate-950">
-        <Globe capability={activeLabel} regions={regions} />
+        {tab === "coverage" ? (
+          <>
+            <Globe capability={activeLabel} regions={regions} />
 
-        {/* Legend — verdict taxonomy; data desert set apart from real gaps */}
-        <div className="pointer-events-none absolute bottom-6 left-6 rounded-lg border border-white/10 bg-slate-900/70 p-4 backdrop-blur">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Region verdict
-          </p>
-          <ul className="space-y-1.5">
-            {VERDICT_ORDER.map((v) => (
-              <li key={v} className="flex items-center gap-2 text-sm">
-                <span
-                  className="inline-block h-3 w-3 rounded-full"
-                  style={{ backgroundColor: VERDICT_COLOR[v] }}
-                />
-                <span className="text-slate-200">{VERDICT_LABEL[v]}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 max-w-[16rem] text-xs text-slate-400">
-            Hover a state for its evidence. A <b>data desert</b> means too few
-            records to judge — not a proven gap.
-          </p>
-        </div>
+            {/* Legend — verdict taxonomy; data desert set apart from real gaps */}
+            <div className="pointer-events-none absolute bottom-6 left-6 rounded-lg border border-white/10 bg-slate-900/70 p-4 backdrop-blur">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Region verdict
+              </p>
+              <ul className="space-y-1.5">
+                {VERDICT_ORDER.map((v) => (
+                  <li key={v} className="flex items-center gap-2 text-sm">
+                    <span
+                      className="inline-block h-3 w-3 rounded-full"
+                      style={{ backgroundColor: VERDICT_COLOR[v] }}
+                    />
+                    <span className="text-slate-200">{VERDICT_LABEL[v]}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 max-w-[16rem] text-xs text-slate-400">
+                Hover a state for its evidence. A <b>data desert</b> means too few
+                records to judge — not a proven gap.
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <Globe capability={activeLabel} regions={regions} facilities={facilities ?? []} />
+
+            {/* Legend — facility types with live counts */}
+            <div className="pointer-events-none absolute bottom-6 left-6 rounded-lg border border-white/10 bg-slate-900/70 p-4 backdrop-blur">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Facility type
+              </p>
+              <ul className="space-y-1.5">
+                {FACILITY_TYPE_ORDER.filter((t) => (typeCounts.get(t) ?? 0) > 0).map((t) => (
+                  <li key={t} className="flex items-center gap-2 text-sm">
+                    <span
+                      className="inline-block h-3 w-3 rounded-full"
+                      style={{ backgroundColor: FACILITY_TYPE_COLOR[t] }}
+                    />
+                    <span className="text-slate-200">{FACILITY_TYPE_LABEL[t]}</span>
+                    <span className="text-slate-500">{typeCounts.get(t)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 max-w-[16rem] text-xs text-slate-400">
+                {facilities === null
+                  ? "Loading facility locations…"
+                  : facilities.length === 0
+                    ? "No facility locations yet — run the materialization pipeline."
+                    : `${facilities.length.toLocaleString()} geolocated facilities. Hover a dot for details.`}
+              </p>
+            </div>
+          </>
+        )}
       </main>
     </div>
   )
