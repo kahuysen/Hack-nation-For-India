@@ -37,7 +37,7 @@ FAC_PIN = "address_zipOrPostcode"
 DIR_PIN, DIR_DIST, DIR_STATE = "pincode", "district", "statename"
 
 # --- thresholds (tune with your team) ---------------------------------------- #
-COVERAGE_OK  = 0.15   # mean facility_trust (0-1) at/above this = relatively covered.
+COVERAGE_OK  = 0.35   # mean facility_trust (0-1) at/above this = relatively covered.
                       # Uses the SAME normalized signal as risk_score's (1-coverage),
                       # not the raw unbounded trust_weighted_supply sum. Tuned low for
                       # product-mode trust (content_trust * source_trust rarely > 0.3).
