@@ -116,6 +116,21 @@ def _raw(name: str):
     return F.coalesce(F.col(name).cast("string"), F.lit(""))
 
 
+def _has_content(name: str):
+    """
+    Does a field carry REAL payload (for the corroboration-present count)?
+
+    Many source fields are JSON-encoded arrays stored as strings, so an EMPTY
+    field arrives as '[]' — a non-empty string. A bare length check would count
+    it as present and inflate n_corrob_present (the content_trust denominator),
+    which both fakes "knowledge = 100%" AND deflates content_trust. Strip to
+    alphanumerics and reject null-ish placeholders so only real content counts:
+      '[]' -> '' (absent) · '["ICU"]' -> 'icu' (present) · 'N/A' -> 'na' (absent)
+    """
+    alnum = F.regexp_replace(F.lower(_raw(name)), r"[^a-z0-9]", "")
+    return (F.length(alnum) > 0) & (~alnum.isin("null", "none", "na", "nan", "nil"))
+
+
 def _contains_any(text_col, keywords):
     """Boolean column: does text_col contain ANY keyword? (raw substring —
     only safe for the controlled-vocab `specialties` codes)."""
@@ -216,7 +231,7 @@ def add_trust_scores(df: DataFrame, capability: str,
                          _contains_any(_txt("specialties"), spec_codes).cast("int")
                          if spec_codes else F.lit(0))
     for f in CORROBORATING_FIELDS:
-        out = out.withColumn(f"has_{f}", (F.length(F.trim(_raw(f))) > 0).cast("int"))
+        out = out.withColumn(f"has_{f}", _has_content(f).cast("int"))
 
     # --- advanced-tier corroboration flag (shown, never weighted) --------- #
     adv_kws = _ONTOLOGY.advanced_equipment_keywords(capability) if _ONTOLOGY else []
