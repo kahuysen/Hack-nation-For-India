@@ -5,6 +5,7 @@ import {
   FACILITY_TYPE_LABEL,
   VERDICT_COLOR,
   VERDICT_LABEL,
+  aggregateRegionsByState,
   facilityTypeColor,
   type FacilityLocation,
   type RegionResult,
@@ -32,10 +33,12 @@ export function Globe({
   capability,
   regions,
   facilities,
+  onSelectState,
 }: {
   capability: string
   regions: RegionResult[]
   facilities?: FacilityLocation[]
+  onSelectState?: (state: string) => void
 }) {
   const pointsMode = facilities !== undefined
   const globeRef = useRef<GlobeMethods | undefined>(undefined)
@@ -50,18 +53,11 @@ export function Globe({
   )
 
   // Lookup region by GeoJSON state name (alias-aware).
-  const byState = useMemo(() => {
-    // The API returns district-level rows (up to 706); the map is state-level.
-    // Surface each state's WORST (highest-risk) district so real deserts are
-    // never hidden behind a better-off district in the same state.
-    const m = new Map<string, RegionResult>()
-    for (const r of regions) {
-      const key = r.state.toLowerCase()
-      const cur = m.get(key)
-      if (!cur || r.risk_score > cur.risk_score) m.set(key, r)
-    }
-    return m
-  }, [regions])
+  // The API returns district-level rows (up to 706); the map is state-level, so
+  // aggregate every district of a state into one synthetic row with a recomputed
+  // verdict (see aggregateRegionsByState). A state is only a data desert when the
+  // whole state has too few records — not when one thin sub-district does.
+  const byState = useMemo(() => aggregateRegionsByState(regions), [regions])
   const regionForState = (name: string): RegionResult | undefined => {
     const key = name.toLowerCase()
     return byState.get(STATE_ALIAS[key] ?? key)
@@ -117,6 +113,14 @@ export function Globe({
           atmosphereColor="#3b82f6"
           atmosphereAltitude={0.18}
           polygonsData={polygons}
+          onPolygonClick={(f: object) => {
+            const tf = f as TaggedFeature
+            if (!isState(tf) || !onSelectState) return
+            const name = tf.properties.state ?? ""
+            // Prefer the region's canonical state name so the panel query matches
+            // the data (GeoJSON uses alias spellings, e.g. Orissa vs Odisha).
+            onSelectState(regionForState(name)?.state ?? name)
+          }}
           polygonCapColor={(f: object) => {
             const tf = f as TaggedFeature
             if (!isState(tf)) return LAND_COLOR

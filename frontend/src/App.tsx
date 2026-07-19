@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Globe } from "@/components/Globe"
+import { FacilityPanel } from "@/components/FacilityPanel"
 import {
   FACILITY_TYPE_COLOR,
   FACILITY_TYPE_LABEL,
@@ -27,6 +28,9 @@ function App() {
   const [regions, setRegions] = useState<RegionResult[]>([])
   const [facilities, setFacilities] = useState<FacilityLocation[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [selectedState, setSelectedState] = useState("")
+  const [districtFilter, setDistrictFilter] = useState("")
 
   // Load the capability catalog once.
   useEffect(() => {
@@ -72,6 +76,18 @@ function App() {
   const activeLabel =
     capabilities.find((c) => c.id === capability)?.label ?? capability
 
+  // Distinct states present in the current rollup, for the panel's filter.
+  const states = useMemo(
+    () => Array.from(new Set(regions.map((r) => r.state))).sort(),
+    [regions],
+  )
+
+  const openStatePanel = (state: string) => {
+    setSelectedState(state)
+    setDistrictFilter("")
+    setPanelOpen(true)
+  }
+
   const typeCounts = new Map<string, number>()
   for (const f of facilities ?? []) {
     typeCounts.set(f.facility_type, (typeCounts.get(f.facility_type) ?? 0) + 1)
@@ -97,7 +113,7 @@ function App() {
             {loading && <span className="ml-2 text-slate-500">loading…</span>}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <nav className="flex gap-1 rounded-lg border border-white/10 bg-slate-900 p-1">
             <button className={tabClass("coverage")} onClick={() => setTab("coverage")}>
               Coverage
@@ -107,20 +123,28 @@ function App() {
             </button>
           </nav>
           {tab === "coverage" && (
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400">Capability</span>
-              <select
-                value={capability}
-                onChange={(e) => setCapability(e.target.value)}
-                className="rounded-md border border-white/15 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-blue-400"
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-slate-400">Capability</span>
+                <select
+                  value={capability}
+                  onChange={(e) => setCapability(e.target.value)}
+                  className="rounded-md border border-white/15 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-blue-400"
+                >
+                  {capabilities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                onClick={() => setPanelOpen((o) => !o)}
+                className="rounded-md border border-white/15 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 hover:border-blue-400 hover:bg-slate-800"
               >
-                {capabilities.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                Receipts
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -128,7 +152,7 @@ function App() {
       <main className="relative flex-1 overflow-hidden bg-slate-950">
         {tab === "coverage" ? (
           <>
-            <Globe capability={activeLabel} regions={regions} />
+            <Globe capability={activeLabel} regions={regions} onSelectState={openStatePanel} />
 
             {/* Legend — verdict taxonomy; data desert set apart from real gaps */}
             <div className="pointer-events-none absolute bottom-6 left-6 rounded-lg border border-white/10 bg-slate-900/70 p-4 backdrop-blur">
@@ -151,6 +175,18 @@ function App() {
                 records to judge — not a proven gap.
               </p>
             </div>
+
+            <FacilityPanel
+              open={panelOpen}
+              capability={capability}
+              capabilityLabel={activeLabel}
+              state={selectedState}
+              district={districtFilter}
+              states={states}
+              onStateChange={setSelectedState}
+              onDistrictChange={setDistrictFilter}
+              onClose={() => setPanelOpen(false)}
+            />
           </>
         ) : (
           <>

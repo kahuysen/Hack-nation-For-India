@@ -34,6 +34,24 @@ class VectorPipelineContractTests(unittest.TestCase):
 
 
 class VectorSearchServiceTests(unittest.TestCase):
+    @patch("backend.app.services.vector_search.WorkspaceClient")
+    @patch("backend.app.services.vector_search._cli_token", return_value="oauth-token")
+    def test_local_client_uses_the_cli_token_without_auth_rediscovery(
+        self, cli_token, workspace_client
+    ):
+        local_settings = SimpleNamespace(
+            local_profile="codex",
+            workspace_host="https://example.cloud.databricks.com",
+        )
+        with patch.object(vector_search, "settings", local_settings):
+            vector_search.workspace_client()
+        cli_token.assert_called_once_with("codex")
+        workspace_client.assert_called_once_with(
+            host="https://example.cloud.databricks.com",
+            token="oauth-token",
+            auth_type="pat",
+        )
+
     def test_query_embedding_is_normalized(self):
         model = Mock()
         model.query_embed.return_value = iter([

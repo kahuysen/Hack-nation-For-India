@@ -1,58 +1,95 @@
-// Dummy facility locations shaped to the REAL /api/facility-locations contract
-// (FacilityLocation), so the Facilities tab works offline in `vite dev`. The
-// live table holds ~10k rows; this is a sparse but geographically honest stand-in:
-// a few facilities scattered around real city anchors, deterministic (no RNG)
-// so snapshots and manual QA stay stable.
+// Dummy facility evidence shaped to the REAL API contract (FacilityEvidence),
+// so the receipts panel renders in `vite dev` and offline demos. The live path
+// (VITE_USE_API / prod build) hits /api/facilities instead — see dataSource.ts.
 
-import type { FacilityLocation } from "./api"
-import { FACILITY_TYPE_ORDER } from "./api"
+import type { FacilityEvidence } from "./api"
 
-type CityAnchor = { city: string; state: string; lat: number; lon: number }
+function facility(
+  name: string,
+  state: string,
+  district: string,
+  tier: string,
+  trust_weight: number,
+  knowledge: number,
+  source_trust: number,
+  n_corroborating: number,
+  claiming: number,
+  data_confidence: string,
+  evidence: { field: string; snippet: string }[],
+  description: string | null,
+  source_urls: string | null,
+): FacilityEvidence {
+  return {
+    capability_id: "ICU",
+    facility_id: `${state}-${district}-${name}`.toLowerCase().replace(/\s+/g, "-"),
+    name,
+    state,
+    district,
+    pin: null,
+    is_candidate: 1,
+    claiming,
+    n_corroborating,
+    tier,
+    trust_weight,
+    knowledge,
+    source_trust,
+    data_confidence,
+    evidence,
+    description,
+    latitude: null,
+    longitude: null,
+    source_urls,
+  }
+}
 
-const CITIES: CityAnchor[] = [
-  { city: "Delhi", state: "Delhi", lat: 28.61, lon: 77.21 },
-  { city: "Mumbai", state: "Maharashtra", lat: 19.08, lon: 72.88 },
-  { city: "Kolkata", state: "West Bengal", lat: 22.57, lon: 88.36 },
-  { city: "Chennai", state: "Tamil Nadu", lat: 13.08, lon: 80.27 },
-  { city: "Bengaluru", state: "Karnataka", lat: 12.97, lon: 77.59 },
-  { city: "Hyderabad", state: "Telangana", lat: 17.39, lon: 78.49 },
-  { city: "Ahmedabad", state: "Gujarat", lat: 23.02, lon: 72.57 },
-  { city: "Pune", state: "Maharashtra", lat: 18.52, lon: 73.86 },
-  { city: "Jaipur", state: "Rajasthan", lat: 26.91, lon: 75.79 },
-  { city: "Lucknow", state: "Uttar Pradesh", lat: 26.85, lon: 80.95 },
-  { city: "Patna", state: "Bihar", lat: 25.59, lon: 85.14 },
-  { city: "Bhopal", state: "Madhya Pradesh", lat: 23.26, lon: 77.41 },
-  { city: "Bhubaneswar", state: "Odisha", lat: 20.3, lon: 85.82 },
-  { city: "Guwahati", state: "Assam", lat: 26.14, lon: 91.74 },
-  { city: "Chandigarh", state: "Punjab", lat: 30.73, lon: 76.78 },
-  { city: "Kochi", state: "Kerala", lat: 9.93, lon: 76.27 },
-  { city: "Nagpur", state: "Maharashtra", lat: 21.15, lon: 79.09 },
-  { city: "Ranchi", state: "Jharkhand", lat: 23.34, lon: 85.31 },
-  { city: "Dehradun", state: "Uttarakhand", lat: 30.32, lon: 78.03 },
-  { city: "Raipur", state: "Chhattisgarh", lat: 21.25, lon: 81.63 },
-  { city: "Visakhapatnam", state: "Andhra Pradesh", lat: 17.69, lon: 83.22 },
-  { city: "Srinagar", state: "Jammu and Kashmir", lat: 34.08, lon: 74.8 },
-  { city: "Imphal", state: "Manipur", lat: 24.82, lon: 93.94 },
-  { city: "Panaji", state: "Goa", lat: 15.49, lon: 73.83 },
+// A handful of states with contrasting trust profiles for the demo.
+export const DUMMY_FACILITIES: FacilityEvidence[] = [
+  facility(
+    "Patna Medical College Hospital", "Bihar", "Patna", "government", 0.82, 0.7, 0.78, 3, 4, "solid",
+    [
+      { field: "services", snippet: "24x7 intensive care unit with 30 ICU beds and ventilator support." },
+      { field: "accreditation", snippet: "Listed as a state tertiary referral centre for critical care." },
+    ],
+    "Tertiary government teaching hospital; primary ICU referral centre for central Bihar.",
+    "https://pmch.gov.in https://data.gov.in/facility/pmch",
+  ),
+  facility(
+    "Sahyog Nursing Home", "Bihar", "Gaya", "private", 0.34, 0.4, 0.36, 1, 3, "thin",
+    [{ field: "listing", snippet: "Directory entry mentions 'ICU facility' without bed count or staffing detail." }],
+    null,
+    null,
+  ),
+  facility(
+    "KEM Hospital", "Maharashtra", "Mumbai", "government", 0.9, 0.86, 0.88, 5, 6, "solid",
+    [
+      { field: "services", snippet: "Multi-disciplinary ICU, NICU and cardiac ICU across 120+ critical-care beds." },
+      { field: "corroboration", snippet: "Confirmed by state health directory and two independent hospital indexes." },
+    ],
+    "Major public tertiary hospital and medical college in Mumbai.",
+    "https://www.kem.edu",
+  ),
+  facility(
+    "Lifeline Multispeciality", "Maharashtra", "Nagpur", "private", 0.61, 0.6, 0.58, 2, 3, "solid",
+    [{ field: "services", snippet: "Private multispecialty with a 12-bed ICU and 24x7 emergency intake." }],
+    "Private multispecialty hospital serving eastern Maharashtra.",
+    "https://example-lifeline.in",
+  ),
+  facility(
+    "Government Rajaji Hospital", "Tamil Nadu", "Madurai", "government", 0.79, 0.74, 0.8, 4, 5, "solid",
+    [
+      { field: "services", snippet: "Government tertiary hospital with dedicated medical and surgical ICUs." },
+      { field: "accreditation", snippet: "State-designated tertiary referral centre for southern Tamil Nadu." },
+    ],
+    "One of the largest government hospitals in southern Tamil Nadu.",
+    "https://www.mmc.tn.gov.in",
+  ),
 ]
 
-const PER_CITY = 6
-
-// Deterministic scatter: spread facilities on a small spiral around the anchor.
-export const DUMMY_FACILITY_LOCATIONS: FacilityLocation[] = CITIES.flatMap(
-  (anchor, cityIndex) =>
-    Array.from({ length: PER_CITY }, (_, i): FacilityLocation => {
-      const angle = (cityIndex * PER_CITY + i) * 2.4 // golden-angle-ish spread
-      const radius = 0.06 + 0.05 * i
-      const type = FACILITY_TYPE_ORDER[(cityIndex + i) % (FACILITY_TYPE_ORDER.length - 1)] // skip "unknown"
-      return {
-        facility_id: `dummy-${anchor.city.toLowerCase()}-${i}`,
-        name: `${anchor.city} ${type.replace("_", " ")} ${i + 1}`,
-        facility_type: type,
-        state: anchor.state,
-        district: anchor.city,
-        latitude: anchor.lat + radius * Math.sin(angle),
-        longitude: anchor.lon + radius * Math.cos(angle),
-      }
-    }),
-)
+/** Dummy stand-in for /api/facilities: filter by state/district. */
+export function dummyFacilities(state?: string, district?: string): FacilityEvidence[] {
+  return DUMMY_FACILITIES.filter(
+    (f) =>
+      (!state || f.state.toLowerCase() === state.toLowerCase()) &&
+      (!district || f.district.toLowerCase() === district.toLowerCase()),
+  ).sort((a, b) => b.trust_weight - a.trust_weight)
+}
