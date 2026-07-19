@@ -37,7 +37,9 @@ FAC_PIN = "address_zipOrPostcode"
 DIR_PIN, DIR_DIST, DIR_STATE = "pincode", "district", "statename"
 
 # --- thresholds (tune with your team) ---------------------------------------- #
-SUPPLY_MIN   = 1.0    # trust-weighted supply below this = a gap (≈ <1 fully-trusted facility)
+COVERAGE_OK  = 0.30   # mean facility_trust (0-1) at/above this = relatively covered.
+                      # Uses the SAME normalized signal as risk_score's (1-coverage),
+                      # not the raw unbounded trust_weighted_supply sum.
 NEED_HI      = 50.0   # NFHS need_score at/above this = high need
 MIN_SOLID    = 10     # >= this many records in a district = we can trust the picture
 MIN_THIN     = 3      # >= this = thin but usable; below = data desert
@@ -152,7 +154,7 @@ def build_district_from_scored(scored_geo: DataFrame, nfhs: DataFrame,
     out = out.withColumn(
         "verdict",
         F.when(F.col("data_confidence") == "data_desert", "data_desert")
-         .when(F.col("trust_weighted_supply") >= SUPPLY_MIN, "covered")
+         .when(F.col("coverage") >= COVERAGE_OK, "covered")
          .when(F.col("need_score").isNull(), "underserved_need_unknown")
          .when(F.col("need_score") >= NEED_HI, "medical_desert")
          .otherwise("watch"))
