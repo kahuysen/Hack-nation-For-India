@@ -93,7 +93,7 @@ export const VERDICT_ORDER: Verdict[] = [
 // verdict, instead of surfacing a single worst-risk district (which let a thin
 // sub-district paint the whole state grey/orange and show a misleading record
 // count). Thresholds mirror data_eng/district_rollup.py — keep them in sync.
-const COVERAGE_OK = 0.3 // mean facility_trust at/above this = covered
+const COVERAGE_OK = 0.15 // mean facility_trust at/above this = covered (keep in sync with district_rollup.py)
 const NEED_HI = 50 // NFHS need at/above this = high need
 const MIN_SOLID = 10 // >= records = "solid"
 const MIN_THIN = 3 // >= records = "thin"; below = data desert

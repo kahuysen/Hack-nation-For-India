@@ -37,9 +37,11 @@ FAC_PIN = "address_zipOrPostcode"
 DIR_PIN, DIR_DIST, DIR_STATE = "pincode", "district", "statename"
 
 # --- thresholds (tune with your team) ---------------------------------------- #
-COVERAGE_OK  = 0.30   # mean facility_trust (0-1) at/above this = relatively covered.
+COVERAGE_OK  = 0.15   # mean facility_trust (0-1) at/above this = relatively covered.
                       # Uses the SAME normalized signal as risk_score's (1-coverage),
-                      # not the raw unbounded trust_weighted_supply sum.
+                      # not the raw unbounded trust_weighted_supply sum. Tuned low for
+                      # product-mode trust (content_trust * source_trust rarely > 0.3).
+                      # KEEP IN SYNC with COVERAGE_OK in frontend/src/lib/api.ts.
 NEED_HI      = 50.0   # NFHS need_score at/above this = high need
 MIN_SOLID    = 10     # >= this many records in a district = we can trust the picture
 MIN_THIN     = 3      # >= this = thin but usable; below = data desert
