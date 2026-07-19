@@ -87,6 +87,99 @@ export const VERDICT_ORDER: Verdict[] = [
   "data_desert",
 ]
 
+// --- district → state rollup ------------------------------------------------ #
+// The API returns district-level rows (up to 706); the map is state-level. We
+// AGGREGATE every district of a state into one synthetic row and RECOMPUTE the
+// verdict, instead of surfacing a single worst-risk district (which let a thin
+// sub-district paint the whole state grey/orange and show a misleading record
+// count). Thresholds mirror data_eng/district_rollup.py — keep them in sync.
+const COVERAGE_OK = 0.3 // mean facility_trust at/above this = covered
+const NEED_HI = 50 // NFHS need at/above this = high need
+const MIN_SOLID = 10 // >= records = "solid"
+const MIN_THIN = 3 // >= records = "thin"; below = data desert
+
+function stateVerdict(nRecords: number, coverage: number, need: number | null): Verdict {
+  if (nRecords < MIN_THIN) return "data_desert"
+  if (coverage >= COVERAGE_OK) return "covered"
+  if (need == null) return "underserved_need_unknown"
+  if (need >= NEED_HI) return "medical_desert"
+  return "watch"
+}
+
+const round = (x: number, p: number) => {
+  const f = 10 ** p
+  return Math.round(x * f) / f
+}
+
+/**
+ * Roll district rows up to one synthetic RegionResult per state.
+ * Keyed by lowercased state name, matching how the map looks states up.
+ */
+export function aggregateRegionsByState(regions: RegionResult[]): Map<string, RegionResult> {
+  const groups = new Map<string, RegionResult[]>()
+  for (const r of regions) {
+    const key = r.state.toLowerCase()
+    const g = groups.get(key)
+    if (g) g.push(r)
+    else groups.set(key, [r])
+  }
+
+  const out = new Map<string, RegionResult>()
+  for (const [key, rows] of groups) {
+    const sum = (f: (r: RegionResult) => number) => rows.reduce((a, r) => a + f(r), 0)
+
+    const nRecords = sum((r) => r.n_records)
+    const nCandidates = sum((r) => r.n_candidates)
+    const trustSupply = sum((r) => r.trust_weighted_supply)
+
+    // coverage = mean facility_trust over candidates → reconstruct from the sums.
+    const coverage = nCandidates > 0 ? trustSupply / nCandidates : 0
+    // knowledge / source trust are per-record means → weight by record count.
+    const knowledge = nRecords > 0 ? sum((r) => r.knowledge * r.n_records) / nRecords : 0
+    const meanSourceTrust =
+      nRecords > 0 ? sum((r) => r.mean_source_trust * r.n_records) / nRecords : 0
+    // need is a demand signal independent of facility density: average the
+    // districts that actually carry an NFHS need score (null if none do).
+    const needRows = rows.filter((r) => r.need_score != null)
+    const need = needRows.length
+      ? needRows.reduce((a, r) => a + (r.need_score as number), 0) / needRows.length
+      : null
+
+    // record-weighted centroid over districts that have coordinates.
+    const geoRows = rows.filter((r) => r.lat != null && r.lon != null && r.n_records > 0)
+    const geoWeight = geoRows.reduce((a, r) => a + r.n_records, 0)
+    const lat = geoWeight ? geoRows.reduce((a, r) => a + (r.lat as number) * r.n_records, 0) / geoWeight : null
+    const lon = geoWeight ? geoRows.reduce((a, r) => a + (r.lon as number) * r.n_records, 0) / geoWeight : null
+
+    const dataConfidence =
+      nRecords >= MIN_SOLID ? "solid" : nRecords >= MIN_THIN ? "thin" : "data_desert"
+    const verdict = stateVerdict(nRecords, coverage, need)
+    const riskScore = ((need ?? NEED_HI) / 100) * (1 - coverage) * knowledge
+
+    out.set(key, {
+      capability_id: rows[0].capability_id,
+      state: rows[0].state,
+      district: `${rows.length} district${rows.length === 1 ? "" : "s"}`,
+      lat,
+      lon,
+      n_records: nRecords,
+      n_candidates: nCandidates,
+      claiming: sum((r) => r.claiming),
+      corroborated: sum((r) => r.corroborated),
+      trust_weighted_supply: round(trustSupply, 3),
+      coverage: round(coverage, 3),
+      knowledge: round(knowledge, 3),
+      mean_source_trust: round(meanSourceTrust, 3),
+      need_score: need == null ? null : round(need, 2),
+      n_indicators: Math.max(0, ...rows.map((r) => r.n_indicators)),
+      data_confidence: dataConfidence,
+      verdict,
+      risk_score: round(riskScore, 4),
+    })
+  }
+  return out
+}
+
 // --- HTTP client ------------------------------------------------------------ #
 // Same-origin by default (Databricks App); override for a local proxy/mock.
 const BASE = import.meta.env.VITE_API_BASE ?? ""

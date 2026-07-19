@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import GlobeGL, { type GlobeMethods } from "react-globe.gl"
-import { VERDICT_COLOR, VERDICT_LABEL, type RegionResult } from "@/lib/api"
+import { aggregateRegionsByState, VERDICT_COLOR, VERDICT_LABEL, type RegionResult } from "@/lib/api"
 import { STATE_ALIAS } from "@/lib/dummyRegions"
 
 const WATER_COLOR = 0x0b1f3a // deep blue ocean
@@ -37,18 +37,11 @@ export function Globe({
   )
 
   // Lookup region by GeoJSON state name (alias-aware).
-  const byState = useMemo(() => {
-    // The API returns district-level rows (up to 706); the map is state-level.
-    // Surface each state's WORST (highest-risk) district so real deserts are
-    // never hidden behind a better-off district in the same state.
-    const m = new Map<string, RegionResult>()
-    for (const r of regions) {
-      const key = r.state.toLowerCase()
-      const cur = m.get(key)
-      if (!cur || r.risk_score > cur.risk_score) m.set(key, r)
-    }
-    return m
-  }, [regions])
+  // The API returns district-level rows (up to 706); the map is state-level, so
+  // aggregate every district of a state into one synthetic row with a recomputed
+  // verdict (see aggregateRegionsByState). A state is only a data desert when the
+  // whole state has too few records — not when one thin sub-district does.
+  const byState = useMemo(() => aggregateRegionsByState(regions), [regions])
   const regionForState = (name: string): RegionResult | undefined => {
     const key = name.toLowerCase()
     return byState.get(STATE_ALIAS[key] ?? key)
