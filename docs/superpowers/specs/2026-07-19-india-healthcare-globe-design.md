@@ -1,96 +1,101 @@
-# India Healthcare Capability Globe — Design
+# India Medical Desert Globe — Design
 
 **Date:** 2026-07-19
-**Status:** Approved design, pre-implementation
+**Status:** Approved design (realigned to the deployed API), pre-implementation
 
 ## Problem
 
 We have an interactive 3D globe (`react-globe.gl`) that currently renders a dummy
-H3 hexbin "heatmap" over India. Two problems:
+H3 hexbin "heatmap" over India. It is (1) laggy — the client tessellates all of
+India into H3 cells and extrudes a 3D prism per cell on every zoom — and (2) fed
+by dummy data.
 
-1. **It's laggy.** The client tessellates all of India into H3 cells
-   (`polygonToCells` over the full India MultiPolygon) and extrudes a 3D prism
-   per cell on *every* zoom change. At higher resolutions that is thousands of
-   cells rebuilt on the main thread.
-2. **It's dummy data.** We need to show real healthcare facilities keyed by a
-   user-selected **capability** (a medical specialty such as ICU, maternity,
-   oncology), backed by a teammate's API.
+A teammate has **already built and deployed** a FastAPI backend (the "Medical
+Desert Planner", Track B). The globe must be driven by that API. This spec is
+realigned to the **real, deployed contract** (see `docs/07-api.md`,
+`api/openapi.json`, `data_eng/`), replacing an earlier draft that assumed an
+H3/bbox tile API we do not have.
 
-We cannot query every region of India at once, and granularity must scale with
-zoom (like vfmatch.org: hexes shrink as you zoom in).
+## What the backend actually is (authoritative)
+
+- **Geography is region-based, not tile-based.** There is **no bbox/H3 endpoint.**
+  The API rolls facilities up to **state** or **district** and joins NFHS-5 health
+  need to classify each region as a medical desert / data desert / served.
+- **Confidence is a trust model, not a single number.** Facility claims are scored
+  by cross-field corroboration (`trust_scoring.py`) and source provenance
+  (`source_trust.py`); regions expose trust-weighted `coverage`, `knowledge`
+  (completeness), `priority_score`, and a `status`.
+- **Auth:** the app is behind Databricks workspace SSO/OAuth. For local
+  development we **do not touch Databricks** — we run a local mock (below).
+
+### Deployed endpoints (base from `docs/07-api.md`)
+
+- `GET /api/capabilities` →
+  `{ "capabilities": ["ICU","NICU","Emergency care","Maternity","Oncology","Trauma center"] }`
+- `GET /api/regions?capability=<c>&level=state|district&limit=<n>` → `RegionResult[]`:
+  `region, facilities, claiming, corroborated, coverage(0..1), knowledge(0..1),
+  health_need(0..1|null), priority_score(0..1), status`
+  (status ∈ 🔴 medical desert / 🟡 data desert / 🟠 claimed-unverified / 🟢 served)
+- `GET /api/facilities?capability=<c>&state=<s>&district=<d>&limit=<n>` →
+  `FacilityEvidence[]`: `facility_id, name, state, district, pin, tier,
+  trust_weight, knowledge, evidence:[source_field, matching_text][],
+  description, latitude, longitude, source_urls`
+
+Regions do **not** carry lat/lon in the HTTP contract; the district rollup
+computes centroids internally (`district_rollup.py`). For v1 markers we derive a
+region centroid client-side (see Geometry).
 
 ## Goals (v1)
 
-- User selects a **capability**; globe shows where facilities providing it exist.
-- **Heatmap mode** (zoomed out): H3 cells shaded by facility count / confidence.
-- **Facility mode** (zoomed in): individual facility markers + a side panel
-  listing each facility with its **confidence score**.
-- Smooth performance — no main-thread tessellation of all of India.
+- User picks a **capability** (from `/api/capabilities`).
+- Globe shows **one marker per region** (state, or district when zoomed in),
+  colored by `status` and sized by `priority_score` — a medical-desert map.
+- Clicking a region opens a **facility receipts** panel: the facilities behind
+  that region's score, each with its trust `tier` and row-level `evidence`
+  citations.
+- Smooth performance (≤ ~706 district markers, not thousands of H3 prisms).
 - Keep the `react-globe.gl` globe aesthetic.
+- **Develop entirely locally** against a mock of the three endpoints.
 
 ## Non-goals (deferred)
 
-- State/region dropdown filter.
-- NFHS-5 "health need vs. supply" overlay (the medical-desert angle).
-- Precomputed vector tiles.
-- Explicit client-side coordinate cleaning (handled implicitly — see below).
+- H3 / bbox shrinking-hexagon tiles (backend doesn't support it).
+- District-boundary choropleth polygons (needs ~700-polygon India district
+  GeoJSON; use centroid bubbles instead for v1).
+- Live Databricks hosting / auth (packaging step at the very end — see below).
+- Ranked desert list panel (`rank_deserts`) — easy follow-up, not v1.
 
 ## Key decisions
 
-- **Capability = the `specialties` enum** on each facility row (`cardiology`,
-  `criticalCareMedicine`, `gynecologyAndObstetrics`, `medicalOncology`, …). The
-  column literally named `capability` is free-text facts and is NOT the selector;
-  it may be shown as supporting detail on a facility card.
-  - ICU → `criticalCareMedicine`; maternity → `gynecologyAndObstetrics` /
-    `obstetricsAndMaternityCare`; oncology → `medicalOncology` /
-    `surgicalOncology`.
-- **Confidence score comes from the API** — a per-facility, per-capability value
-  in `[0, 1]`. The frontend only displays it.
-- **Granularity + performance = server-side H3 aggregation.** The frontend sends
-  a bounding box + zoom-derived H3 resolution; the API returns only **non-empty**
-  aggregated cells. No client tessellation, no India-filling cell set.
-- **Coordinate hygiene is server-side and implicit.** The API only aggregates /
-  returns facilities whose coords fall in the India bbox (~lat 6–37, lng 68–98),
-  so garbage coordinates (e.g. a hospital at lng −38, lat 59) never reach the map.
-- **Zoom drives the mode switch.** Above a zoom threshold the client calls the
-  facilities endpoint instead of the heatmap endpoint. (No region selection in v1.)
+- **Region model, not tiles.** Zoom selects **grain**: zoomed out → `level=state`;
+  zoomed in past a threshold → `level=district`. This preserves the
+  "granularity changes with zoom" feel without any H3.
+- **Markers, not choropleth.** Render each region as a bubble at its centroid,
+  `color = status`, `size = priority_score` (fallback `health_need`). Cheap on
+  the globe and matches `react-globe.gl` `pointsData`/`htmlElementsData`.
+- **Confidence is shown as tier + receipts**, never a bare number: region tooltip
+  shows `coverage`, `health_need`, `priority_score`, `claiming`/`corroborated`;
+  facility rows show `tier` + the `evidence` snippets.
+- **Coordinate hygiene client-side.** Defensively hide any marker whose centroid
+  falls outside India's bbox (~lat 6–37, lng 68–98), since upstream coords contain
+  junk (e.g. a facility at lng −38, lat 59) that can skew a centroid.
+- **Local mock is the dev backend.** A tiny local server implements the three
+  endpoints from the in-repo sample data so the UI builds with zero Databricks
+  dependency. `VITE_API_BASE` switches between the mock and the deployed app.
 
-## API contract (we define it; teammate implements)
+## Geometry: where region centroids come from
 
-All responses JSON. `bbox` is `west,south,east,north` in degrees. `res` is an H3
-resolution integer.
-
-### `GET /api/capabilities` (optional; may be hardcoded client-side for v1)
-```json
-{ "capabilities": [ { "key": "criticalCareMedicine", "label": "ICU / Critical Care" } ] }
-```
-
-### `GET /api/heatmap?capability=<key>&bbox=<w,s,e,n>&res=<int>`
-Aggregated, India-clamped, capability-filtered. Only non-empty cells.
-```json
-{
-  "resolution": 4,
-  "cells": [ { "h3": "83a1e5fffffffff", "count": 12, "avgConfidence": 0.71 } ]
-}
-```
-
-### `GET /api/facilities?capability=<key>&bbox=<w,s,e,n>&limit=<int>`
-Individual facilities in view, for facility mode.
-```json
-{
-  "facilities": [
-    {
-      "id": "fadba1a4-...",
-      "name": "Shaurya Hospital",
-      "lat": 23.0107, "lng": 72.5626,
-      "facilityType": "hospital", "operatorType": "private",
-      "confidence": 0.82,
-      "specialties": ["criticalCareMedicine", "orthopedicSurgery"],
-      "city": "Ahmedabad", "state": "Gujarat"
-    }
-  ]
-}
-```
+- **Facility mode** already has `latitude`/`longitude` per facility — used
+  directly for facility markers.
+- **Region markers** need a centroid. The HTTP `RegionResult` has no lat/lon, so
+  v1 derives it client-side from a small static lookup:
+  - `state` → static India state centroid table (36 entries, vendored in
+    `frontend/src/lib/regionCentroids.ts`).
+  - `district` → centroid from the **pincode directory** (average the
+    district's pincode lat/lngs once, at build time, into a vendored JSON), with
+    the India-bbox clamp applied.
+- If a region can't be geolocated, it still appears in any list UI but is skipped
+  on the globe (logged, not silently dropped).
 
 ## Diagrams
 
@@ -100,94 +105,131 @@ Individual facilities in view, for facility mode.
 classDiagram
     class App {
         +capability: string
-        +mode: "heatmap"|"facility"
+        +level: "state"|"district"
+        +selectedRegion: string|null
     }
     class CapabilityPicker { +onChange(key) }
-    class Globe { +cells +facilities +onViewChange(bbox,res,mode) }
-    class FacilityPanel { +facilities }
-    class useHealthData { +cells +facilities +loading }
-    class apiClient { +getHeatmap() +getFacilities() +getCapabilities() }
+    class Globe { +regions +facilities +onViewChange(level) +onRegionClick(region) }
+    class FacilityPanel { +facilities +region }
+    class useRegions { +regions +loading }
+    class useFacilities { +facilities +loading }
+    class apiClient { +getCapabilities() +getRegions() +getFacilities() }
+    class regionCentroids { +stateCentroid(name) +districtCentroid(name) }
 
     App --> CapabilityPicker : NEW
     App --> Globe : MOD
     App --> FacilityPanel : NEW
-    App --> useHealthData : NEW
-    useHealthData --> apiClient : NEW
-    Globe ..> App : onViewChange(bbox,res,mode)
+    App --> useRegions : NEW
+    App --> useFacilities : NEW
+    useRegions --> apiClient : NEW
+    useFacilities --> apiClient : NEW
+    Globe --> regionCentroids : NEW
+    Globe ..> App : onViewChange / onRegionClick
 ```
 
-### Runtime flow (per zoom / pan, debounced)
+### Runtime flow
 
 ```mermaid
 sequenceDiagram
     participant U as User
+    participant A as App
     participant G as Globe (MOD)
-    participant H as useHealthData (NEW)
-    participant A as API
-    U->>G: zoom / pan / pick capability
-    G->>H: onViewChange(bbox, res, mode)
-    Note over H: debounce ~250ms
-    alt mode == heatmap (zoomed out)
-        H->>A: GET /api/heatmap?capability&bbox&res
-        A-->>H: { resolution, cells[] }
-        H-->>G: cells → cellToBoundary → polygons
-    else mode == facility (zoomed in)
-        H->>A: GET /api/facilities?capability&bbox&limit
-        A-->>H: { facilities[] }
-        H-->>G: facilities → point markers
-        H-->>FacilityPanel: facilities → list
-    end
+    participant API as apiClient -> mock/deployed
+    U->>A: pick capability
+    A->>API: GET /api/regions?capability&level=state
+    API-->>A: RegionResult[]
+    A->>G: regions (+ centroids) -> status-colored bubbles
+    U->>G: zoom in past threshold
+    G->>A: onViewChange(level="district")
+    A->>API: GET /api/regions?capability&level=district
+    API-->>G: district bubbles
+    U->>G: click a region bubble
+    G->>A: onRegionClick(region)
+    A->>API: GET /api/facilities?capability&state|district
+    API-->>A: FacilityEvidence[]
+    A->>FacilityPanel: facilities (tier + evidence receipts)
+    A->>G: facility markers near region
 ```
 
 ## Rendering approach (Globe, MOD)
 
-- **Heatmap mode:** convert each returned H3 cell to its boundary via h3-js
-  `cellToBoundary(h3, true)` and render as **flat filled polygons**
-  (`polygonsData`, low `polygonAltitude`) colored by a normalized metric
-  (count or `avgConfidence`) using the existing `heatColor` ramp. Flat polygons
-  avoid the per-cell prism cost that causes today's lag. The set is sparse
-  (only in-view, non-empty cells), so far fewer polygons than today.
-- **Facility mode:** render facilities as `pointsData` markers colored by
-  confidence; hover/click surfaces the facility; the side `FacilityPanel` lists
-  them.
-- **View events:** `onZoom` / `onZoomEnd` provide the camera POV. Derive `bbox`
-  from the camera and `res` from altitude (reuse/extend `altitudeToResolution`).
-  A single altitude threshold flips `mode` between heatmap and facility.
-- **Debounce** view-change fetches (~250 ms) so drag/zoom doesn't hammer the API.
+- **Remove** the client-side H3 machinery (`buildHeatPoints`, `HOTSPOTS`,
+  `weightAt`, `polygonToCells`, hexBin props).
+- **Region layer:** `pointsData` (or `htmlElementsData` for nicer labels) at
+  region centroids; `pointColor` = status palette, `pointRadius`/altitude =
+  `priority_score`. Tooltip = coverage/need/priority + claiming/corroborated.
+- **Facility layer:** on region click, `pointsData` for that region's facilities,
+  colored by `tier`; hover/click surfaces the facility; the `FacilityPanel` lists
+  them with `evidence` citations and `source_urls`.
+- **Zoom → level:** reuse an altitude threshold to flip `level` state→district and
+  refetch `/api/regions`. Debounce (~250 ms).
+- Keep country outlines + India framing as today.
 
-## Data-fetching (useHealthData, NEW)
+## Status palette (legend)
 
-- Inputs: `capability`, `bbox`, `res`, `mode`.
-- Fetches the matching endpoint, cancels in-flight requests on new view
-  (AbortController), exposes `{ cells, facilities, loading }`.
-- No fetch until a capability is selected.
+| status | meaning | color |
+|---|---|---|
+| 🟢 served | trusted supply meets need | green |
+| 🟠 claimed-unverified | claims present, weak corroboration | amber |
+| 🟡 data desert | too few records to judge | grey/yellow |
+| 🔴 medical desert | high need, low trusted supply | red |
+
+Exact strings come from the API; map defensively (unknown status → neutral grey).
+
+## Data-fetching (NEW hooks)
+
+- `useRegions(capability, level)` → fetches `/api/regions`, cancels superseded
+  requests (AbortController), returns `{ regions, loading, error }`. No fetch
+  until a capability is chosen.
+- `useFacilities(capability, region)` → fetches `/api/facilities` on region
+  select; same cancellation semantics.
+
+## Local mock backend (NEW)
+
+- `frontend/mock/server.mjs` — a tiny Node HTTP/Express server implementing the
+  three endpoints against the in-repo sample data, matching the response shapes
+  in `docs/07-api.md`. Trust scoring can be **approximated** (keyword corroboration
+  across `capability`/`procedure`/`equipment`/`description`/`specialties`) — UI
+  fidelity, not scoring parity, is the goal. Capabilities returned verbatim as the
+  deployed 6.
+- `frontend/src/lib/api.ts` reads `import.meta.env.VITE_API_BASE`
+  (default `http://localhost:8787` = mock). Swapping to the deployed app is an
+  env change only.
+
+## Path to Databricks (later, one step — not now)
+
+`npm run build` → serve `frontend/dist` as static files from the same FastAPI app
+that exposes `/api/*`. Same origin → no CORS, SSO covers auth. ~20-min packaging
+task once the UI is stable; explicitly **out of scope** for active development.
 
 ## Files
 
-- `frontend/src/components/Globe.tsx` — **MOD**: remove client tessellation
-  (`buildHeatPoints`, `HOTSPOTS`, `weightAt`); consume server `cells`/`facilities`;
-  emit `onViewChange(bbox, res, mode)`; render flat polygons + point markers.
-- `frontend/src/components/CapabilityPicker.tsx` — **NEW**: capability dropdown.
-- `frontend/src/components/FacilityPanel.tsx` — **NEW**: facility list with
-  confidence.
-- `frontend/src/hooks/useHealthData.ts` — **NEW**: debounced, cancelable fetch.
-- `frontend/src/lib/api.ts` — **NEW**: typed API client + capability catalog.
-- `frontend/src/App.tsx` — **MOD**: wire picker + globe + panel + state.
+- `frontend/src/components/Globe.tsx` — **MOD**: drop H3 machinery; render region
+  bubbles + facility markers; emit `onViewChange(level)` / `onRegionClick`.
+- `frontend/src/components/CapabilityPicker.tsx` — **NEW**.
+- `frontend/src/components/FacilityPanel.tsx` — **NEW**: receipts (tier + evidence).
+- `frontend/src/hooks/useRegions.ts`, `useFacilities.ts` — **NEW**.
+- `frontend/src/lib/api.ts` — **NEW**: typed client, `VITE_API_BASE`.
+- `frontend/src/lib/regionCentroids.ts` (+ vendored district centroid JSON) — **NEW**.
+- `frontend/mock/server.mjs` — **NEW**: local mock of the three endpoints.
+- `frontend/src/App.tsx` — **MOD**: wire picker + globe + panel + state (capability,
+  level, selectedRegion).
 
 ## Error / edge handling
 
-- Capability unselected → globe shows base map only, no fetch.
-- Empty response → clear cells/facilities (no stale render).
-- API error → non-blocking toast/inline notice; keep last good view.
-- Aborted request (superseded view) → ignored silently.
-- Facility-mode `limit` cap → if exceeded, show a "showing first N" note (no
-  silent truncation).
+- Capability unselected → base globe only, no fetch.
+- Empty region/facility list → clear layers (no stale render).
+- Region without a resolvable centroid → omit from globe, log; still valid in lists.
+- API/mock error → non-blocking inline notice; keep last good view.
+- Superseded request → aborted silently.
+- Facility `limit` hit → "showing first N" note (no silent truncation).
 
 ## Testing
 
-- Unit: `altitudeToResolution` thresholds; bbox-from-camera math; mode-switch
-  threshold; `cellToBoundary` → polygon conversion.
-- Hook: `useHealthData` debounces, cancels superseded requests, clears on empty.
-- Manual/e2e (Playwright probe, as today): pick a capability, confirm cells
-  render zoomed out and markers + panel render zoomed in, and that zoom stays
-  smooth (no multi-second stalls).
+- Unit: altitude→level threshold; centroid lookup + India-bbox clamp; status→color
+  mapping (incl. unknown status).
+- Hooks: `useRegions`/`useFacilities` debounce, cancel superseded, clear on empty.
+- Mock: endpoints return contract-shaped payloads for each capability.
+- Manual/e2e (Playwright probe as today): pick a capability → status-colored
+  region bubbles; zoom → district grain; click a region → facility receipts panel;
+  confirm no multi-second stalls.
