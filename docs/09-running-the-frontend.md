@@ -43,12 +43,29 @@ state for its (dummy) evidence tooltip.
   states) used for the choropleth. `public/countries.geojson` is the world base
   layer.
 
-## Connecting to the real API (later)
+## API integration
 
-The app will read `import.meta.env.VITE_API_BASE` to choose its data source
-(local mock vs. the deployed Databricks App). Until then it uses the dummy data
-above. See `docs/superpowers/specs/2026-07-19-india-healthcare-globe-design.md`
-for the full plan (mock backend, region model, persistence).
+The app already speaks the real API contract (`src/lib/api.ts`, matching
+`api/openapi.json` v2.0.0): `/api/capabilities`, `/api/regions` (verdict-based
+`RegionResult`), `/api/facilities` (`FacilityEvidence` with row-level evidence).
+
+`src/lib/dataSource.ts` chooses the source by env flag:
+
+| Env | Effect |
+|---|---|
+| _(unset)_ | **Dummy data** shaped to the real contract (default; local dev) |
+| `VITE_USE_API=true` | Call the **live API** |
+| `VITE_API_BASE=<url>` | Override the API origin (default: same-origin) |
+
+The deployed API is behind Databricks SSO, so `VITE_USE_API=true` only works
+**same-origin inside the Databricks App** (SSO cookie) — not from a local browser.
+For local dev, keep the dummy source. See
+`docs/superpowers/specs/2026-07-19-india-healthcare-globe-design.md` for the full
+plan (region model, persistence).
+
+> Note: the live `/api/regions` is **district-grain**; the current choropleth is
+> **state-grain** (vendored state GeoJSON). Going live means either a district
+> GeoJSON or rolling districts up to states for the map.
 
 ## Taking a screenshot (optional)
 
