@@ -1,133 +1,64 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
-import { cellToLatLng, polygonToCells } from "h3-js"
 import GlobeGL, { type GlobeMethods } from "react-globe.gl"
+import {
+  STATUS_COLOR,
+  STATUS_LABEL,
+  NO_DATA_COLOR,
+  regionForState,
+} from "@/lib/dummyRegions"
 
-const WATER_COLOR = 0x2563eb // blue ocean (globe sphere)
-const LAND_COLOR = "#ffffff" // white land fill
-const BORDER_COLOR = "#000000" // black country borders
+const WATER_COLOR = 0x0b1f3a // deep blue ocean
+const LAND_COLOR = "#dbe2ea" // pale land fill (rest of world)
+const BORDER_COLOR = "#334155" // slate borders
 
-// Dummy "activity" hotspots over India — [lat, lng, intensity].
-const HOTSPOTS: [number, number, number][] = [
-  [28.6139, 77.209, 0.9], // Delhi
-  [19.076, 72.8777, 0.85], // Mumbai
-  [12.9716, 77.5946, 0.8], // Bengaluru
-  [22.5726, 88.3639, 0.7], // Kolkata
-  [13.0827, 80.2707, 0.65], // Chennai
-  [17.385, 78.4867, 0.6], // Hyderabad
-  [26.9124, 75.7873, 0.5], // Jaipur
-]
-const HOTSPOT_SIGMA = 2.6 // degrees
+type Feature = {
+  properties: { ADMIN?: string; state?: string }
+  geometry: { type: string; coordinates: unknown }
+}
+// Tag which layer a feature belongs to.
+type TaggedFeature = Feature & { __kind: "country" | "state" }
 
-// Heatmap color ramp: blue → cyan → green → orange → red.
-const HEAT_STOPS: [number, [number, number, number]][] = [
-  [0.0, [37, 99, 235]],
-  [0.3, [6, 182, 212]],
-  [0.55, [132, 204, 22]],
-  [0.78, [245, 158, 11]],
-  [1.0, [220, 38, 38]],
-]
+const isState = (f: object): f is TaggedFeature =>
+  (f as TaggedFeature).__kind === "state"
 
-// Smooth dummy weight in [0, 1] from the hotspots — resolution-independent.
-function weightAt(lat: number, lng: number): number {
-  let w = 0.08
-  for (const [hlat, hlng, intensity] of HOTSPOTS) {
-    const d2 = (lat - hlat) ** 2 + (lng - hlng) ** 2
-    w += intensity * Math.exp(-d2 / (2 * HOTSPOT_SIGMA ** 2))
-  }
-  return Math.min(1, w)
+function stateColor(f: TaggedFeature): string {
+  const r = regionForState(f.properties.state ?? "")
+  return r ? STATUS_COLOR[r.status] : NO_DATA_COLOR
 }
 
-function heatColor(t: number, alpha = 0.92): string {
-  const x = Math.max(0, Math.min(1, t))
-  for (let i = 1; i < HEAT_STOPS.length; i++) {
-    const [t1, c1] = HEAT_STOPS[i]
-    if (x <= t1) {
-      const [t0, c0] = HEAT_STOPS[i - 1]
-      const f = (x - t0) / (t1 - t0)
-      const r = Math.round(c0[0] + (c1[0] - c0[0]) * f)
-      const g = Math.round(c0[1] + (c1[1] - c0[1]) * f)
-      const b = Math.round(c0[2] + (c1[2] - c0[2]) * f)
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`
-    }
-  }
-  const [, last] = HEAT_STOPS[HEAT_STOPS.length - 1]
-  return `rgba(${last[0]}, ${last[1]}, ${last[2]}, ${alpha})`
-}
-
-// Zoom → H3 resolution. Closer camera (smaller altitude) → finer hexagons.
-function altitudeToResolution(altitude: number): number {
-  if (altitude > 3.2) return 2
-  if (altitude > 2.4) return 3
-  if (altitude > 1.6) return 4
-  return 5
-}
-
-// One weighted point per H3 cell covering India, so every cell renders (full coverage).
-function buildHeatPoints(indiaFeature: GeoFeature | null, resolution: number) {
-  if (!indiaFeature) return []
-  const geom = indiaFeature.geometry
-  const polygons =
-    geom.type === "Polygon"
-      ? [geom.coordinates as number[][][]]
-      : (geom.coordinates as number[][][][])
-
-  const cells = new Set<string>()
-  for (const polygon of polygons) {
-    // isGeoJson=true → coordinates are [lng, lat], clipped to the polygon.
-    for (const cell of polygonToCells(polygon, resolution, true)) cells.add(cell)
-  }
-
-  return Array.from(cells, (cell) => {
-    const [lat, lng] = cellToLatLng(cell)
-    return { lat, lng, weight: weightAt(lat, lng) }
-  })
-}
-
-type GeoFeature = {
-  properties: { ADMIN?: string }
-  geometry: { type: "Polygon" | "MultiPolygon"; coordinates: unknown }
-}
-type HeatPoint = { lat: number; lng: number; weight: number }
-// Aggregated hexbin passed to the accessors by react-globe.gl.
-type HexBin = { points: HeatPoint[]; sumWeight: number }
-
-// Mean weight of a hexbin — stable across resolution (1 point per cell → the cell's weight).
-const binIntensity = (bin: HexBin) =>
-  bin.points.length ? bin.sumWeight / bin.points.length : 0
-
-export function Globe() {
+export function Globe({ capability }: { capability: string }) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
-  const [countries, setCountries] = useState<GeoFeature[]>([])
-  const [resolution, setResolution] = useState(() => altitudeToResolution(2))
+  const [countries, setCountries] = useState<Feature[]>([])
+  const [states, setStates] = useState<Feature[]>([])
 
   const globeMaterial = useMemo(
     () => new THREE.MeshPhongMaterial({ color: WATER_COLOR }),
     [],
   )
 
-  const india = useMemo(
-    () => countries.find((f) => f.properties.ADMIN === "India") ?? null,
-    [countries],
-  )
+  // World land (minus India, which the state layer fills) + India states.
+  const polygons = useMemo<TaggedFeature[]>(() => {
+    const world = countries
+      .filter((f) => f.properties.ADMIN !== "India")
+      .map((f) => ({ ...f, __kind: "country" as const }))
+    const ind = states.map((f) => ({ ...f, __kind: "state" as const }))
+    return [...world, ...ind]
+  }, [countries, states])
 
-  // Rebuild the hex grid whenever India loads or the zoom resolution changes.
-  const heatPoints = useMemo(
-    () => buildHeatPoints(india, resolution),
-    [india, resolution],
-  )
-
-  // Load precise country boundaries (Natural Earth 110m, vendored in /public).
   useEffect(() => {
     fetch("/countries.geojson")
-      .then((res) => res.json())
+      .then((r) => r.json())
       .then((geo) => setCountries(geo.features))
-      .catch((err) => console.error("Failed to load country outlines", err))
+      .catch((e) => console.error("countries load failed", e))
+    fetch("/india-states.geojson")
+      .then((r) => r.json())
+      .then((geo) => setStates(geo.features))
+      .catch((e) => console.error("states load failed", e))
   }, [])
 
-  // Keep the globe sized to its container.
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -139,12 +70,11 @@ export function Globe() {
     return () => observer.disconnect()
   }, [])
 
-  // Point the camera at India on mount. No auto-rotation — the user drives it.
   useEffect(() => {
     const globe = globeRef.current
     if (!globe) return
     globe.controls().autoRotate = false
-    globe.pointOfView({ lat: 22, lng: 79, altitude: 2 }, 0)
+    globe.pointOfView({ lat: 22, lng: 80, altitude: 1.6 }, 0)
   }, [size.width])
 
   return (
@@ -156,29 +86,49 @@ export function Globe() {
           height={size.height}
           backgroundColor="rgba(0,0,0,0)"
           globeMaterial={globeMaterial}
-          showAtmosphere={false}
-          polygonsData={countries}
-          polygonCapColor={() => LAND_COLOR}
-          polygonSideColor={() => LAND_COLOR}
+          showAtmosphere={true}
+          atmosphereColor="#3b82f6"
+          atmosphereAltitude={0.18}
+          polygonsData={polygons}
+          polygonCapColor={(f: object) =>
+            isState(f as TaggedFeature)
+              ? stateColor(f as TaggedFeature)
+              : LAND_COLOR
+          }
+          polygonSideColor={(f: object) =>
+            isState(f as TaggedFeature) ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.15)"
+          }
           polygonStrokeColor={() => BORDER_COLOR}
-          polygonAltitude={0.006}
+          polygonAltitude={(f: object) =>
+            isState(f as TaggedFeature) ? 0.016 : 0.006
+          }
           polygonsTransitionDuration={0}
-          hexBinPointsData={heatPoints}
-          hexBinPointLat={(d: object) => (d as HeatPoint).lat}
-          hexBinPointLng={(d: object) => (d as HeatPoint).lng}
-          hexBinPointWeight={(d: object) => (d as HeatPoint).weight}
-          hexBinResolution={resolution}
-          hexBinMerge={false}
-          hexMargin={0.08}
-          hexAltitude={(d: object) => 0.02 + binIntensity(d as HexBin) * 0.16}
-          hexTopColor={(d: object) => heatColor(binIntensity(d as HexBin))}
-          hexSideColor={(d: object) => heatColor(binIntensity(d as HexBin), 0.6)}
-          hexLabel={(d: object) =>
-            `Intensity: ${Math.round(binIntensity(d as HexBin) * 100)}%`
-          }
-          onZoom={(pov: { altitude: number }) =>
-            setResolution(altitudeToResolution(pov.altitude))
-          }
+          polygonLabel={(f: object) => {
+            const tf = f as TaggedFeature
+            if (!isState(tf)) return ""
+            const name = tf.properties.state ?? ""
+            const r = regionForState(name)
+            if (!r)
+              return `
+                <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(15,23,42,.92);
+                            padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15)">
+                  <div style="font-weight:600">${name}</div>
+                  <div style="color:${NO_DATA_COLOR}">No rollup for ${capability}</div>
+                </div>`
+            const need = r.health_need == null ? "unknown" : `${Math.round(r.health_need * 100)}%`
+            return `
+              <div style="font:12px/1.4 system-ui;color:#fff;background:rgba(15,23,42,.92);
+                          padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);max-width:230px">
+                <div style="font-weight:600;font-size:13px">${r.region}</div>
+                <div style="color:${STATUS_COLOR[r.status]};font-weight:600;margin:2px 0 4px">
+                  ${STATUS_LABEL[r.status]}
+                </div>
+                <div>Capability: <b>${capability}</b></div>
+                <div>Coverage: ${Math.round(r.coverage * 100)}% · Need: ${need}</div>
+                <div>Priority: ${Math.round(r.priority_score * 100)}%</div>
+                <div>${r.corroborated}/${r.claiming} claims corroborated · ${r.facilities} records</div>
+              </div>`
+          }}
         />
       )}
     </div>
